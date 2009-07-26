@@ -1,0 +1,70 @@
+Compile instructions
+--------------------
+
+These are temporary instructions for compiling DB Relay.  Eventually there will be a master build process using autoconf 
+or something similar.  
+
+These instructions assume the following directories, adjust as necessary (HOME is /User/devapp)
+
+freetds is unpacked in ~/src/freetds-0.82
+freetds is installed in ~/freetds-0.82
+DB Relay module is unpacked in ~/src/ngx_http_dbrelay
+nginx is unpacked in ~/src/nginx-0.7.11
+
+DB Relay needs two static libraries from FreeTDS.  The libtds.a is only available internally and needs
+to be copied from the source directory and not the installed directory.
+
+cd ~/ngx_http_dbrelay
+./configure --with-freetds=/Users/devapp/freetds-0.82 
+
+Next, build nginx with the following options.  --without-http_rewrite_module is necassary only
+on OSX without PCRE loaded, this will be resolved in the future
+
+cd ~/nginx-0.7.11
+./configure --prefix=/Users/devapp/nginx-0.7.11 --without-http_rewrite_module --add-module=/Users/devapp/src/ngx_http_dbrelay
+make
+make install
+
+Configuration
+-------------
+
+The following lines must be added to the nginx.conf file's "server" section.
+
+location /sql {
+   dbrelay;
+}
+
+change the listen port and other options changed if needed.
+
+
+Running
+-------
+
+To start: sbin/nginx
+To stop: kill `cat logs/nginx.pid`
+
+
+Testing
+-------
+
+To automatically test dbrelay edit unittest/telnet.py to suitable values and run:
+
+python telnet.py
+
+To test in the web browser, 
+
+cp ~/src/ngx_http_dbrelay/unittest/example.html ~/nginx-0.7.11/html
+
+and navigate to "http://localhost:8080/example.html" (assuming nginx configured on localhost:8080)
+
+To run the unittests, you need spidermoney JavaScript engine.  Create a file in ~/src/ngx_http_dbrelay/unittest/PWD like this:
+
+HOST=dbserver
+DATABASE=dbname
+USER=sa
+PASSWORD=mypassword
+
+the in the unittest directory, run 
+
+./testall.sh
+

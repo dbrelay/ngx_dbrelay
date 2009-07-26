@@ -1,0 +1,101 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>Viaduct table example</title>
+    <script type="text/javascript" src="jquery-1.2.6.pack.js"></script>
+    <script type="text/javascript" charset="utf-8">
+
+      var viaduct = "http://localhost:8080/sql";
+    
+      var sql_conn = {
+        sql_server   : "192.168.16.128",
+        sql_database : "getco",
+        sql_user     : "sa"
+      };
+      
+      function viaductQuery( viaduct, connection, sql, callback, tag) {
+	alert('in viaductQuery');
+        connection[ "sql" ] = sql;
+        if ( tag !== undefined ) connection[ "query_tag" ] = tag;
+        $.post( viaduct, connection, callback, "json");
+      };
+
+      $(document).ready(function() {
+        viaductQuery(
+          viaduct,
+          sql_conn,
+          'select * from viaduct1 select * from viaduct2',
+          processRowSets,
+          'Example'
+        );
+      });
+      
+      function processRowSets( response ) {
+        alert( 'The "' + response.request.query_tag + '" query has just returned.' );
+        tables = []
+        for ( rs_id in response.data ) {
+          rowset = response.data[ rs_id ];
+          if ( rowset.count ) {
+            tables.push( makeTable( rowset ) );
+          };
+          $('<hr>').appendTo( 'body' );
+        };
+        $('<p>').html('The "' + response.request.query_tag + '" query was:').appendTo( 'body' )
+        .css( { textAlign : 'center' } );
+        pre = $('<pre>').html( response.log.sql ).appendTo( 'body' );
+        for ( idx in tables ) {
+          tables[idx].animate( { opacity : 1 }, 400 * (idx + 1) );
+        };
+        setTimeout( "$('pre').show( 3000 );", 400 * tables.length );
+      };
+
+      var makeTable = function( rowset ) {
+        table = $( '<table>' );
+        tr = $( '<tr>' ).appendTo( table );
+        headers = [];
+        for ( field in rowset.fields ) {
+          header = rowset.fields[ field ]["name"]
+          $( '<th>' ).html( header ).appendTo( tr );
+          headers.push( header );
+        };
+        for ( row_id in rowset.rows ) {
+          row = rowset.rows[ row_id ];
+          tr = $( '<tr>' ).appendTo( table );
+          for ( idx in headers ) {
+            $( '<td>' ).html( row[ headers[ idx ] ] ).appendTo( tr );
+          };
+        };
+        table.appendTo( 'body' );
+        return table;
+      };
+      
+    </script>
+    <style type="text/css" media="screen">
+      table {
+        margin: auto;
+        border-collapse: collapse;
+        opacity: 0;
+      }
+      td {
+        border: 1px solid gray;
+        padding: 0.5em;
+      }
+      hr {
+        border: 1px dotted #22306F;
+        margin: 2em;
+      }
+      pre {
+        color: white;
+        background-color: #22306F;
+        font-weight: bold;
+        padding: 2em;
+        width: 25em;
+        margin: auto;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+  </body>
+</html>

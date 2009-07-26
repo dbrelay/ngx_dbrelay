@@ -1,0 +1,4 @@
+Sun Mar 15 10:04:51 EDT 2009 Brian Bruns <brian@bruns.com>
+        * Implemented autoconf for ngx_http_viaduct module
+        * Build-time determination of database backend
+
