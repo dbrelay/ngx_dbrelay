@@ -1,7 +1,7 @@
-viaduct_config.h: Makefile
-	echo '#define VIADUCT_PREFIX "$(prefix)"' >$@
-#	git show --abbrev-commit | grep "^commit" | awk '{print "#define VIADUCT_BUILD \"" $$2 "\""}' >>$@
-	echo "#define VIADUCT_BUILD \"@VIADUCT_BUILD@\"" >>$@
+dbrelay_config.h: Makefile
+	echo '#define DBRELAY_PREFIX "$(prefix)"' >$@
+#	git show --abbrev-commit | grep "^commit" | awk '{print "#define DBRELAY_BUILD \"" $$2 "\""}' >>$@
+	echo "#define DBRELAY_BUILD \"@DBRELAY_BUILD@\"" >>$@
 
-all-am: viaduct_config.h
+all-am: dbrelay_config.h
 
