@@ -29,7 +29,9 @@ dbrelay_dbapi_t dbrelay_mssql_api =
    &dbrelay_mssql_colscale,
    &dbrelay_mssql_fetch_row,
    &dbrelay_mssql_colvalue,
-   &dbrelay_mssql_error
+   &dbrelay_mssql_error,
+   &dbrelay_mssql_catalogsql,
+   &dbrelay_mssql_isalive
 };
 
 int dbrelay_mssql_msg_handler(DBPROCESS * dbproc, DBINT msgno, int msgstate, int severity, char *msgtext, char *srvname, char *procname, int line);
@@ -355,4 +357,39 @@ char *dbrelay_mssql_error(void *db)
    } else {
       return login_error;
    }
+}
+char *dbrelay_mssql_catalogsql(int dbcmd, char **params)
+{
+   char *sql;
+   char *columns_mask = "SELECT COLUMN_NAME,IS_NULLABLE,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s'";
+   char *pkey_mask = "SELECT c.COLUMN_NAME \
+FROM  INFORMATION_SCHEMA.TABLE_CONSTRAINTS pk , \
+INFORMATION_SCHEMA.KEY_COLUMN_USAGE c \
+WHERE pk.TABLE_NAME = '%s' \
+AND   CONSTRAINT_TYPE = 'PRIMARY KEY' \
+AND   c.TABLE_NAME = pk.TABLE_NAME \
+AND   c.CONSTRAINT_NAME = pk.CONSTRAINT_NAME";
+
+   switch (dbcmd) {
+      case DBRELAY_DBCMD_TABLES:
+         return strdup("SELECT * FROM INFORMATION_SCHEMA.tables WHERE TABLE_TYPE='BASE TABLE'");
+         break;
+      case DBRELAY_DBCMD_COLUMNS:
+         sql = malloc(strlen(columns_mask) + strlen(params[0]));
+         sprintf(columns_mask, params[0]);
+         return sql;
+         break;
+      case DBRELAY_DBCMD_PKEY: 
+         sql = malloc(strlen(pkey_mask) + strlen(params[0]));
+         sprintf(pkey_mask, params[0]);
+         return sql;
+         break;
+   }
+   return NULL;
+}
+int dbrelay_mssql_isalive(void *db)
+{
+   mssql_db_t *mssql = (mssql_db_t *) db;
+   
+   return !DBDEAD(mssql->dbproc);
 }

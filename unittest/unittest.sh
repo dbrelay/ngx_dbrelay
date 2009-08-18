@@ -31,11 +31,11 @@ TESTNAME=$1
 JS=`which js 2> /dev/null`
 if [ "$JS" = "" -o "x$DEBUG" = "x1" ]
 then
-   echo ../src/viaduct $OPTU $OPTH $OPTD $OPTC -tunittest -f${TESTNAME}.sql 2> /dev/null 
-   ../src/viaduct $OPTU $OPTH $OPTD $OPTC -tunittest -f${TESTNAME}.sql 2> /dev/null 
+   echo ../src/dbrelay $OPTU $OPTH $OPTD $OPTC -tunittest -f${TESTNAME}.sql 2> /dev/null 
+   ../src/dbrelay $OPTU $OPTH $OPTD $OPTC -tunittest -f${TESTNAME}.sql 2> /dev/null 
 else
    # spidermonkey's readline() doesn't differentiate between blank lines
    # and EOF, so the sed here adds a space to the begining of each line.
-   ../src/viaduct $OPTU $OPTH $OPTD $OPTC -tunittest -f${TESTNAME}.sql 2> /dev/null | sed -e 's/^/ /' | $JS ${TESTNAME}.js
+   ../src/dbrelay $OPTU $OPTH $OPTD $OPTC -tunittest -f${TESTNAME}.sql 2> /dev/null | sed -e 's/^/ /' | $JS ${TESTNAME}.js
 fi
 

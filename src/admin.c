@@ -12,6 +12,11 @@
 
 u_char *dbrelay_json_error(char *error_string);
 int dbrelay_admin_kill(dbrelay_request_t *request, char *sock_path);
+u_char *dbrelay_admin_tables(dbrelay_request_t *request);
+u_char *dbrelay_admin_columns(dbrelay_request_t *request);
+u_char *dbrelay_admin_pkey(dbrelay_request_t *request);
+
+extern dbrelay_dbapi_t *api;
 
 char *dbrelay_admin_result_text(int ret)
 {
@@ -33,6 +38,12 @@ u_char *dbrelay_db_cmd(dbrelay_request_t *request)
          return (u_char *) dbrelay_json_error("No parameter specified");
       }
       ret = dbrelay_admin_kill(request, request->params[0]);
+   } else if (!strcmp(request->cmd, "tables")) {
+      return (u_char *) dbrelay_admin_tables(request);
+   } else if (!strcmp(request->cmd, "columns")) {
+      return (u_char *) dbrelay_admin_columns(request);
+   } else if (!strcmp(request->cmd, "pkey")) {
+      return (u_char *) dbrelay_admin_pkey(request);
    } else {
       return (u_char *) dbrelay_json_error("Unknown admin command");
    }
@@ -49,7 +60,22 @@ u_char *dbrelay_db_cmd(dbrelay_request_t *request)
    json_free(json);
 
    return json_output;
+}
 
+u_char *dbrelay_admin_tables(dbrelay_request_t *request)
+{
+   request->sql = api->catalogsql(DBRELAY_DBCMD_TABLES, NULL);
+   return dbrelay_db_run_query(request);
+}
+u_char *dbrelay_admin_columns(dbrelay_request_t *request)
+{
+   request->sql = api->catalogsql(DBRELAY_DBCMD_COLUMNS, request->params);
+   return dbrelay_db_run_query(request);
+}
+u_char *dbrelay_admin_pkey(dbrelay_request_t *request)
+{
+   request->sql = api->catalogsql(DBRELAY_DBCMD_PKEY, request->params);
+   return dbrelay_db_run_query(request);
 }
 
 int dbrelay_admin_kill(dbrelay_request_t *request, char *sock_path)

@@ -11,6 +11,7 @@
 
 static char *dbrelay_readline(char *prompt);
 static void dbrelay_add_history(const char *s);
+static void write_flag_values(dbrelay_request_t *request, char *value);
 
 static int istty;
 static char *input_file;
@@ -21,7 +22,7 @@ populate_request(int argc, char **argv, dbrelay_request_t *request)
     int opt;
     int required = 0;
 
-    while ((opt = getopt(argc, argv, "h:p:u:w:c:t:d:v:f:T:S:")) != -1) {
+    while ((opt = getopt(argc, argv, "h:p:u:w:c:t:d:v:f:F:T:S:")) != -1) {
           switch (opt) {
           case 'c':
                   strcpy(request->connection_name, optarg);
@@ -31,6 +32,9 @@ populate_request(int argc, char **argv, dbrelay_request_t *request)
                   break;
           case 'f':
                   input_file = strdup(optarg);
+                  break;
+          case 'F':
+                  write_flag_values(request, optarg);
                   break;
           case 'h':
                   strcpy(request->sql_server, optarg);
@@ -158,6 +162,9 @@ int main(int argc, char **argv)
                request->params[0] = param0;
 	       json_output = dbrelay_db_cmd(request);
 	       free(m2);
+	    } else if (strlen(mybuf)>=11 && !strncmp(mybuf, "list tables", 11)) {
+               strcpy(request->cmd,"tables");
+	       json_output = (u_char *) dbrelay_db_cmd(request);
             } else {
                request->sql = mybuf;
                json_output = (u_char *) dbrelay_db_run_query(request);
@@ -254,5 +261,18 @@ dbrelay_add_history(const char *s)
         if (istty)
                 add_history(s);
 #endif
+}
+
+static void
+write_flag_values(dbrelay_request_t *request, char *value)
+{
+   char *flags = strdup(value);
+   char *tok;
+
+   while ((tok = strsep(&flags, ";"))) {
+      if (!strcmp(tok, "echosql")) request->flags|=DBRELAY_FLAG_ECHOSQL;
+      if (!strcmp(tok, "pp")) request->flags|=DBRELAY_FLAG_PP;
+   }
+   free(flags);
 }
 

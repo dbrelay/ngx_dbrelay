@@ -25,6 +25,8 @@
 #define DBRELAY_NAME_SZ 101
 #define DBRELAY_SOCKET_BUFSIZE 4096
 
+#define DBRELAY_HARD_TIMEOUT 28800
+
 #define DBRELAY_LOG_SCOPE_SERVER 1
 #define DBRELAY_LOG_SCOPE_CONN 2
 #define DBRELAY_LOG_SCOPE_QUERY 3
@@ -47,6 +49,10 @@
 
 #define DBRELAY_FLAG_ECHOSQL 0x01
 #define DBRELAY_FLAG_PP      0x02
+
+#define DBRELAY_DBCMD_TABLES    0
+#define DBRELAY_DBCMD_COLUMNS   1
+#define DBRELAY_DBCMD_PKEY      2
 
 #ifdef CMDLINE
    typedef struct ngx_log_s {} ngx_log_t;
@@ -120,6 +126,8 @@ typedef int (*dbrelay_db_colscale)(void *db, int colnum);
 typedef int (*dbrelay_db_fetch_row)(void *db);
 typedef char *(*dbrelay_db_colvalue)(void *db, int colnum, char *dest);
 typedef char *(*dbrelay_db_error)(void *db);
+typedef char *(*dbrelay_db_catalogsql)(int dbcmd, char **params);
+typedef int (*dbrelay_db_isalive)(void *db);
 
 typedef struct {
    dbrelay_db_init init;
@@ -141,6 +149,9 @@ typedef struct {
    dbrelay_db_fetch_row fetch_row;
    dbrelay_db_colvalue colvalue;
    dbrelay_db_error error;
+   dbrelay_db_catalogsql catalogsql;
+   dbrelay_db_isalive isalive;
+
 } dbrelay_dbapi_t;
 
 u_char *dbrelay_db_run_query(dbrelay_request_t *request);

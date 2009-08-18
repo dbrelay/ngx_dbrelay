@@ -65,6 +65,7 @@ static void dbrelay_db_populate_connection(dbrelay_request_t *request, dbrelay_c
       }
       dbrelay_log_info(request, "socket name %s", conn->sock_path);
       conn->tm_create = time(NULL);
+      conn->tm_accessed = time(NULL);
       conn->in_use++;
       conn->pid = getpid();
 
@@ -74,6 +75,7 @@ static void dbrelay_db_populate_connection(dbrelay_request_t *request, dbrelay_c
    conn->db = api->connect(request);
       
    conn->tm_create = time(NULL);
+   conn->tm_accessed = time(NULL);
    conn->in_use++;
 
    conn->pid = getpid();
@@ -187,7 +189,17 @@ static void dbrelay_db_close_connections(dbrelay_request_t *request)
          dbrelay_log_notice(request, "dead worker %u holding connection slot %d, cleaning up.", conn->pid, conn->slot);
          dbrelay_db_zero_connection(conn, request);
       }
-      if (!conn->pid || conn->in_use) continue;
+
+      if (!conn->pid) continue;
+
+      if (conn->tm_accessed + DBRELAY_HARD_TIMEOUT < now) {
+         dbrelay_log_notice(request, "hard timing out conection %u", conn->slot);
+         dbrelay_db_close_connection(conn, request);
+         continue;
+      }
+
+      if (conn->in_use) continue;
+
       if (conn->tm_accessed + conn->connection_timeout < now) {
          dbrelay_log_notice(request, "timing out conection %u", conn->slot);
          dbrelay_db_close_connection(conn, request);
@@ -294,29 +306,11 @@ u_char *dbrelay_db_status(dbrelay_request_t *request)
 
    return json_output;
 }
-u_char *dbrelay_db_run_query(dbrelay_request_t *request)
+/*
+ * echo request parameters in json output
+ */
+static void dbrelay_append_request_json(json_t *json, dbrelay_request_t *request)
 {
-   /* FIX ME */
-   char error_string[500];
-   json_t *json = json_new();
-   u_char *ret;
-   dbrelay_connection_t *conn;
-   dbrelay_connection_t *connections;
-   //DBPROCESS *dbproc = NULL;
-   int s = 0;
-   int slot = -1;
-   char *newsql;
-   int i = 0;
-   char tmp[20];
-   int have_error = 0;
-
-   error_string[0]='\0';
-
-   dbrelay_log_info(request, "run_query called");
-
-   if (request->flags & DBRELAY_FLAG_PP) json_pretty_print(json, 1);
-   json_new_object(json);
-
    json_add_key(json, "request");
    json_new_object(json);
 
@@ -338,6 +332,88 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
 
    json_end_object(json);
 
+}
+static void dbrelay_append_log_json(json_t *json, dbrelay_request_t *request, char *error_string)
+{
+   int i;
+   char tmp[20];
+
+   json_add_key(json, "log");
+   json_new_object(json);
+   if (request->flags & DBRELAY_FLAG_ECHOSQL) json_add_string(json, "sql", request->sql);
+   if (strlen(error_string)) {
+      json_add_string(json, "error", error_string);
+   }
+   i = 0;
+   while (request->params[i]) {
+      sprintf(tmp, "param%d", i);
+      json_add_string(json, tmp, request->params[i]);
+      i++;
+   }
+   json_end_object(json);
+
+   json_end_object(json);
+}
+static dbrelay_connection_t *dbrelay_wait_for_connection(dbrelay_request_t *request, int *s)
+{
+   int slot = 0;
+   dbrelay_connection_t *conn;
+   dbrelay_connection_t *connections;
+
+   do {
+      dbrelay_log_debug(request, "calling get_connection");
+      slot = dbrelay_db_get_connection(request);
+      dbrelay_log_debug(request, "using slot %d", slot);
+      if (slot==-1) {
+         dbrelay_log_warn(request, "Couldn't allocate new connection");
+         return NULL;
+      }
+
+      connections = dbrelay_get_shmem();
+      conn = (dbrelay_connection_t *) malloc(sizeof(dbrelay_connection_t));
+      memcpy(conn, &connections[slot], sizeof(dbrelay_connection_t));
+      conn->slot = slot;
+      dbrelay_release_shmem(connections);
+
+      if (IS_SET(request->connection_name)) {
+         dbrelay_log_info(request, "connecting to connection helper");
+         dbrelay_log_info(request, "socket address %s", conn->sock_path);
+         *s = dbrelay_socket_connect(conn->sock_path);
+         // if connect fails, remove connector from list
+         if (*s==-1) {
+            unlink(conn->sock_path);
+            free(conn);
+            connections = dbrelay_get_shmem();
+            connections[slot].pid=0;
+            dbrelay_release_shmem(connections);
+         }
+      }
+  } while (*s==-1);
+
+  return conn;
+}
+u_char *dbrelay_db_run_query(dbrelay_request_t *request)
+{
+   /* FIX ME */
+   char error_string[500];
+   json_t *json = json_new();
+   u_char *ret;
+   dbrelay_connection_t *conn;
+   dbrelay_connection_t *connections;
+   int s = 0;
+   int slot = -1;
+   char *newsql;
+   int have_error = 0;
+
+   error_string[0]='\0';
+
+   dbrelay_log_info(request, "run_query called");
+
+   if (request->flags & DBRELAY_FLAG_PP) json_pretty_print(json, 1);
+   json_new_object(json);
+
+   dbrelay_append_request_json(json, request);
+
    if (!dbrelay_check_request(request)) {
         dbrelay_log_info(request, "check_request failed.");
         dbrelay_write_json_log(json, request, "Not all required parameters submitted.");
@@ -349,38 +425,47 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
    
    newsql = dbrelay_resolve_params(request, request->sql);
 
-   do {
-      dbrelay_log_debug(request, "calling get_connection");
-      slot = dbrelay_db_get_connection(request);
-      dbrelay_log_debug(request, "using slot %d", slot);
-      if (slot==-1) {
-         dbrelay_log_warn(request, "Couldn't allocate new connection");
-         dbrelay_write_json_log(json, request, "Couldn't allocate new connection");
+   conn = dbrelay_wait_for_connection(request, &s);
+   if (conn == NULL) {
+      dbrelay_write_json_log(json, request, "Couldn't allocate new connection");
 
-         ret = (u_char *) json_to_string(json);
-         json_free(json);
-         return ret;
-      }
+      ret = (u_char *) json_to_string(json);
+      json_free(json);
+      return ret;
+   }
+   slot = conn->slot;
 
-      connections = dbrelay_get_shmem();
-      conn = (dbrelay_connection_t *) malloc(sizeof(dbrelay_connection_t));
-      memcpy(conn, &connections[slot], sizeof(dbrelay_connection_t));
-      dbrelay_release_shmem(connections);
+   dbrelay_log_debug(request, "Allocated connection for query");
 
-      if (IS_SET(request->connection_name)) {
-         dbrelay_log_info(request, "connecting to connection helper");
-         dbrelay_log_info(request, "socket address %s", conn->sock_path);
-         s = dbrelay_socket_connect(conn->sock_path);
-         // if connect fails, remove connector from list
-         if (s==-1) {
-            unlink(conn->sock_path);
-            free(conn);
-            connections = dbrelay_get_shmem();
-            connections[slot].pid=0;
-            dbrelay_release_shmem(connections);
-         }
-      }
-  } while (s==-1);
+   error_string[0]='\0';
+
+   dbrelay_log_info(request, "run_query called");
+
+   if (request->flags & DBRELAY_FLAG_PP) json_pretty_print(json, 1);
+   json_new_object(json);
+
+   dbrelay_append_request_json(json, request);
+
+   if (!dbrelay_check_request(request)) {
+        dbrelay_log_info(request, "check_request failed.");
+        dbrelay_write_json_log(json, request, "Not all required parameters submitted.");
+
+        ret = (u_char *) json_to_string(json);
+        json_free(json);
+        return ret;
+   }
+   
+   newsql = dbrelay_resolve_params(request, request->sql);
+
+   conn = dbrelay_wait_for_connection(request, &s);
+   if (conn == NULL) {
+      dbrelay_write_json_log(json, request, "Couldn't allocate new connection");
+
+      ret = (u_char *) json_to_string(json);
+      json_free(json);
+      return ret;
+   }
+   slot = conn->slot;
 
    dbrelay_log_debug(request, "Allocated connection for query");
 
@@ -437,21 +522,7 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
 
    free(newsql);
 
-   json_add_key(json, "log");
-   json_new_object(json);
-   if (request->flags & DBRELAY_FLAG_ECHOSQL) json_add_string(json, "sql", request->sql);
-   if (strlen(error_string)) {
-      json_add_string(json, "error", error_string);
-   }
-   i = 0;
-   while (request->params[i]) {
-      sprintf(tmp, "param%d", i);
-      json_add_string(json, tmp, request->params[i]);
-      i++;
-   }
-   json_end_object(json);
-
-   json_end_object(json);
+   dbrelay_append_log_json(json, request, error_string);
 
    ret = (u_char *) json_to_string(json);
    json_free(json);
@@ -618,6 +689,7 @@ dbrelay_find_placeholder(char *sql)
 static int
 dbrelay_check_request(dbrelay_request_t *request)
 {
+   if (!request->sql && !request->cmd) return 0;
    if (!request->sql) return 0;
    if (!IS_SET(request->sql_server)) return 0;
    if (!IS_SET(request->sql_user)) return 0;

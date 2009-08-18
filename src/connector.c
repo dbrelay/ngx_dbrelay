@@ -11,12 +11,7 @@
 #include "dbrelay.h"
 #include "../include/dbrelay_config.h"
 
-#if HAVE_FREETDS
-#include "mssql.h"
-#endif
-#if HAVE_MYSQL
-#include "vmysql.h"
-#endif
+extern dbrelay_dbapi_t *api;
 
 #define SOCK_PATH "/tmp/dbrelay/connector"
 #define DEBUG 1
@@ -85,12 +80,7 @@ main(int argc, char **argv)
       sock_path = SOCK_PATH;
    }
 
-#if HAVE_FREETDS
-   dbrelay_mssql_init();
-#endif
-#if HAVE_MYSQL
-   dbrelay_mysql_init();
-#endif
+   api->init();
 
    s = dbrelay_socket_create(sock_path);
 
@@ -127,12 +117,7 @@ main(int argc, char **argv)
 #if PERSISTENT_CONN
               if (!connected) {
 #endif
-#if HAVE_FREETDS
-                  conn.db = dbrelay_mssql_connect(&request);
-#endif
-#if HAVE_MYSQL
-                  conn.db = dbrelay_mysql_connect(&request);
-#endif
+                  conn.db = api->connect(&request);
                   connected = 1;
 #if PERSISTENT_CONN
               }
@@ -158,12 +143,7 @@ main(int argc, char **argv)
               dbrelay_socket_send_string(s2, ":OK\n");
               log_msg("done\n"); 
 #if !PERSISTENT_CONN
-#if HAVE_FREETDS
-              dbrelay_mssql_close(conn.db);
-#endif
-#if HAVE_MYSQL
-              dbrelay_mysql_close(conn.db);
-#endif
+              api->close(conn.db);
 #endif
               free(results);
 		      if (request.connection_timeout) set_timer(request.connection_timeout);
@@ -185,11 +165,9 @@ main(int argc, char **argv)
         } // recv
         if (t<=0) log_msg("client connection broken\n");
         receive_sql = 0;
-#if HAVE_FREETDS
-        if (DBDEAD(conn.db)) {
+        if (!api->isalive(conn.db)) {
            connected = 0;
         }
-#endif
    } // for
    return 0;
 }

@@ -34,5 +34,8 @@ int dbrelay_mssql_colscale(void *db, int colnum);
 int dbrelay_mssql_fetch_row(void *db);
 char *dbrelay_mssql_colvalue(void *db, int colnum, char *dest);
 char *dbrelay_mssql_error(void *db);
+char *dbrelay_mssql_catalogsql(int dbcmd, char **params);
+int dbrelay_mssql_isalive(void *db);
+
 
 #endif
