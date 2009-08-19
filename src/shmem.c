@@ -23,14 +23,6 @@ key_t dbrelay_get_ipc_key()
 {
    return ftok(DBRELAY_PREFIX, 1);
 }
-static char *get_path(char *path, char *fname)
-{
-   strcpy(path, DBRELAY_PREFIX);
-   strcat(path, "/");
-   strcat(path, fname);
-
-   return path;
-}
 void dbrelay_create_shmem()
 {
    key_t key;

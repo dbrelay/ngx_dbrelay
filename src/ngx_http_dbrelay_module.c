@@ -19,7 +19,7 @@ typedef struct {
 void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request);
 void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request);
 static char *ngx_http_dbrelay_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
-static ngx_int_t ngx_http_dbrelay_create_request(ngx_http_request_t *r);
+//static ngx_int_t ngx_http_dbrelay_create_request(ngx_http_request_t *r);
 static void *ngx_http_dbrelay_create_loc_conf(ngx_conf_t *cf);
 static ngx_int_t ngx_http_dbrelay_send_response(ngx_http_request_t *r);
 ngx_int_t ngx_http_dbrelay_init_master(ngx_log_t *log);
@@ -144,6 +144,7 @@ ngx_http_dbrelay_request_body_handler(ngx_http_request_t *r)
 /*
  * Copied from Emillers guide, for upstream module, not yet functional
  */
+#if 0
 static ngx_int_t
 ngx_http_dbrelay_create_request(ngx_http_request_t *r)
 {
@@ -170,10 +171,12 @@ ngx_http_dbrelay_create_request(ngx_http_request_t *r)
 
     return NGX_OK;
 }
+#endif
 
 /*
  * Copied from Emillers guide, for upstream module, not yet functional
  */
+#if 0
 static ngx_int_t
 ngx_http_dbrelay_process_header(ngx_http_request_t *r)
 {
@@ -194,9 +197,11 @@ ngx_http_dbrelay_process_header(ngx_http_request_t *r)
 
     return NGX_OK;
 }
+#endif
 /*
  * Copied from Emillers guide, for upstream module, not yet functional
  */
+#if 0
 static void
 ngx_http_dbrelay_finalize_request(ngx_http_request_t *r, ngx_int_t rc)
 {
@@ -205,10 +210,12 @@ ngx_http_dbrelay_finalize_request(ngx_http_request_t *r, ngx_int_t rc)
 
     return;
 }
+#endif
 
 /*
  * Copied from Emillers guide, for upstream module, not yet functional
  */
+#if 0
 static ngx_int_t
 ngx_http_dbrelay2_handler(ngx_http_request_t *r)
 {
@@ -248,6 +255,7 @@ ngx_http_dbrelay2_handler(ngx_http_request_t *r)
 
     return NGX_DONE;
 }
+#endif
 
 /*
  * Non-upstream version of handler.  
