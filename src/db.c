@@ -439,36 +439,6 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
 
    error_string[0]='\0';
 
-   dbrelay_log_info(request, "run_query called");
-
-   if (request->flags & DBRELAY_FLAG_PP) json_pretty_print(json, 1);
-   json_new_object(json);
-
-   dbrelay_append_request_json(json, request);
-
-   if (!dbrelay_check_request(request)) {
-        dbrelay_log_info(request, "check_request failed.");
-        dbrelay_write_json_log(json, request, "Not all required parameters submitted.");
-
-        ret = (u_char *) json_to_string(json);
-        json_free(json);
-        return ret;
-   }
-   
-   newsql = dbrelay_resolve_params(request, request->sql);
-
-   conn = dbrelay_wait_for_connection(request, &s);
-   if (conn == NULL) {
-      dbrelay_write_json_log(json, request, "Couldn't allocate new connection");
-
-      ret = (u_char *) json_to_string(json);
-      json_free(json);
-      return ret;
-   }
-   slot = conn->slot;
-
-   dbrelay_log_debug(request, "Allocated connection for query");
-
    if (IS_SET(request->connection_name)) 
    {
       dbrelay_log_info(request, "sending request");
