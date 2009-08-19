@@ -1,6 +1,6 @@
 #!/bin/sh
 
-TESTS="1 2 3 4 5 6"
+TESTS=`ls test[0-9]*.js | cut -f1 -d'.' | cut -b 5-`
 
 echo
 echo Testing unnamed connections
