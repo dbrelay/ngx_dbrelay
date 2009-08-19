@@ -72,13 +72,14 @@ dbrelay_socket_connect(char *sock_path)
        return -1;
    }
 
-   if (DEBUG) printf("Trying to connect...\n");
+   if (DEBUG) printf("Trying to connect (%s)...\n", sock_path);
 
    remote.sun_family = AF_UNIX;
    strcpy(remote.sun_path, sock_path);
    len = strlen(remote.sun_path) + sizeof(remote.sun_family) + 1;
 
    if (connect(s, (struct sockaddr *)&remote, len) == -1) {
+      if (DEBUG) perror("connect"); 
       return -1;
    }
    if (DEBUG) printf("Connected.\n");
