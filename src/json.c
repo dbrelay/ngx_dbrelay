@@ -208,6 +208,15 @@ void json_push(json_t *json, int node_type)
    json->stack = node;
 }
 
+void json_add_callback(json_t *json, char *value)
+{
+   sb_append(json->sb, value);
+   sb_append(json->sb, "(");
+}
+void json_end_callback(json_t *json)
+{
+   sb_append(json->sb, ");");
+}
 /*
 main()
 {

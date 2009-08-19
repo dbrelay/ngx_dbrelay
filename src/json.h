@@ -38,5 +38,7 @@ void json_add_string(json_t *json, char *key, char *value);
 void json_add_json(json_t *json, char *value);
 void json_add_null(json_t *json, char *key);
 void json_push(json_t *json, int node_type);
+void json_add_callback(json_t *json, char *value);
+void json_end_callback(json_t *json);
 
 #endif /* _JSON_H_INCLUDED_ */

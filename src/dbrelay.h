@@ -87,6 +87,8 @@ typedef struct {
    char remote_addr[DBRELAY_OBJ_SZ];
    char sock_path[256];  /* explicitly specify socket path */
    unsigned long flags;
+   char js_callback[DBRELAY_NAME_SZ];
+   char js_error[DBRELAY_NAME_SZ];
 } dbrelay_request_t;
 
 typedef struct {

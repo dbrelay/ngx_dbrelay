@@ -480,6 +480,10 @@ write_value(dbrelay_request_t *request, char *key, char *value)
       }
    } else if (!strcmp(key, "flags")) {
       write_flag_values(request, value);
+   } else if (!strcmp(key, "js_callback")) {
+      copy_value(request->js_callback, value, DBRELAY_NAME_SZ);
+   } else if (!strcmp(key, "js_error")) {
+      copy_value(request->js_error, value, DBRELAY_NAME_SZ);
    }
    
    if (!noprint) {

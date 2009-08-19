@@ -410,6 +410,12 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
    dbrelay_log_info(request, "run_query called");
 
    if (request->flags & DBRELAY_FLAG_PP) json_pretty_print(json, 1);
+
+
+   if (IS_SET(request->js_callback)) {
+      json_add_callback(json, request->js_callback);
+   }
+
    json_new_object(json);
 
    dbrelay_append_request_json(json, request);
@@ -493,6 +499,10 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
    free(newsql);
 
    dbrelay_append_log_json(json, request, error_string);
+
+   if (IS_SET(request->js_callback)) {
+      json_end_callback(json);
+   }
 
    ret = (u_char *) json_to_string(json);
    json_free(json);
