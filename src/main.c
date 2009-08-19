@@ -22,13 +22,19 @@ populate_request(int argc, char **argv, dbrelay_request_t *request)
     int opt;
     int required = 0;
 
-    while ((opt = getopt(argc, argv, "h:p:u:w:c:t:d:v:f:F:T:S:")) != -1) {
+    while ((opt = getopt(argc, argv, "h:p:u:w:c:t:d:v:f:F:T:S:C:E:")) != -1) {
           switch (opt) {
           case 'c':
                   strcpy(request->connection_name, optarg);
                   break;
+          case 'C':
+                  strcpy(request->js_callback, optarg);
+                  break;
           case 'd':
                   strcpy(request->sql_database, optarg);
+                  break;
+          case 'E':
+                  strcpy(request->js_error, optarg);
                   break;
           case 'f':
                   input_file = strdup(optarg);

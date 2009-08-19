@@ -392,6 +392,17 @@ static dbrelay_connection_t *dbrelay_wait_for_connection(dbrelay_request_t *requ
 
   return conn;
 }
+void dbrelay_db_restart_json(dbrelay_request_t *request, json_t **json)
+{
+   if (IS_SET(request->js_error)) {
+      // free json handle and start over
+      json_free(*json);
+      *json = json_new();
+      json_add_callback(*json, request->js_error);
+      json_new_object(*json);
+      dbrelay_append_request_json(*json, request);
+   }
+}
 u_char *dbrelay_db_run_query(dbrelay_request_t *request)
 {
    /* FIX ME */
@@ -421,19 +432,27 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
    dbrelay_append_request_json(json, request);
 
    if (!dbrelay_check_request(request)) {
+	dbrelay_db_restart_json(request, &json);
         dbrelay_log_info(request, "check_request failed.");
         dbrelay_write_json_log(json, request, "Not all required parameters submitted.");
+
+	if (IS_SET(request->js_callback) || IS_SET(request->js_error)) {
+           json_end_callback(json);
+	}
 
         ret = (u_char *) json_to_string(json);
         json_free(json);
         return ret;
    }
-   
+
    newsql = dbrelay_resolve_params(request, request->sql);
 
    conn = dbrelay_wait_for_connection(request, &s);
    if (conn == NULL) {
+      dbrelay_db_restart_json(request, &json);
       dbrelay_write_json_log(json, request, "Couldn't allocate new connection");
+      if (IS_SET(request->js_callback) || IS_SET(request->js_error))
+           json_end_callback(json);
 
       ret = (u_char *) json_to_string(json);
       json_free(json);
@@ -455,6 +474,7 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
          dbrelay_log_error(request, "Error occurred on socket %s (PID: %u)", conn->sock_path, conn->helper_pid);
       }
       if (have_error) {
+         dbrelay_db_restart_json(request, &json);
          dbrelay_log_debug(request, "have error");
          strcpy(error_string, (char *) ret);
       } else if (!IS_SET((char *)ret)) {
@@ -480,10 +500,12 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
         } else {
 	    strcpy(error_string, api->error(conn->db));
         }
+        dbrelay_db_restart_json(request, &json);
       } else {
    	dbrelay_log_debug(request, "Sending sql query");
         ret = dbrelay_exec_query(conn, request->sql_database, newsql, request->flags);
         if (ret==NULL) {
+           dbrelay_db_restart_json(request, &json);
    	   dbrelay_log_debug(request, "error");
            strcpy(error_string, request->error_message);
         } else {
@@ -500,7 +522,7 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
 
    dbrelay_append_log_json(json, request, error_string);
 
-   if (IS_SET(request->js_callback)) {
+   if (IS_SET(request->js_callback) || IS_SET(request->js_error)) {
       json_end_callback(json);
    }
 
