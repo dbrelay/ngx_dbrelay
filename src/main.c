@@ -156,7 +156,7 @@ int main(int argc, char **argv)
 	    } else if (strlen(mybuf)>=4 && !strncmp(mybuf, "kill", 4)) {
 	       m2 = strdup(mybuf);
 	       strtok(m2, " \t");
-	       param0 = strtok(NULL, " \t");
+	       param0 = strtok(NULL, " \t\n\r");
 	       fprintf(stderr, "killing %s\n", param0);
                strcpy(request->cmd,"kill");
                request->params[0] = param0;
