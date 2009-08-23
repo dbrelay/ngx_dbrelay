@@ -171,6 +171,24 @@ int main(int argc, char **argv)
 	    } else if (strlen(mybuf)>=11 && !strncmp(mybuf, "list tables", 11)) {
                strcpy(request->cmd,"tables");
 	       json_output = (u_char *) dbrelay_db_cmd(request);
+	    } else if (strlen(mybuf)>=12 && !strncmp(mybuf, "list columns", 12)) {
+	       m2 = strdup(mybuf);
+	       strtok(m2, " \t");
+	       strtok(NULL, " \t\n\r");
+	       param0 = strtok(NULL, " \t\n\r");
+               strcpy(request->cmd,"columns");
+               request->params[0] = param0;
+	       json_output = dbrelay_db_cmd(request);
+	       free(m2);
+	    } else if (strlen(mybuf)>=9 && !strncmp(mybuf, "list keys", 9)) {
+	       m2 = strdup(mybuf);
+	       strtok(m2, " \t");
+	       strtok(NULL, " \t\n\r");
+	       param0 = strtok(NULL, " \t\n\r");
+               strcpy(request->cmd,"pkey");
+               request->params[0] = param0;
+	       json_output = dbrelay_db_cmd(request);
+	       free(m2);
             } else {
                request->sql = mybuf;
                json_output = (u_char *) dbrelay_db_run_query(request);

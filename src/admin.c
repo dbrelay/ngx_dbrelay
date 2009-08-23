@@ -64,12 +64,16 @@ u_char *dbrelay_db_cmd(dbrelay_request_t *request)
 
 u_char *dbrelay_admin_tables(dbrelay_request_t *request)
 {
+
+   dbrelay_log_debug(request, "calling tables");
    request->sql = api->catalogsql(DBRELAY_DBCMD_TABLES, NULL);
    return dbrelay_db_run_query(request);
 }
 u_char *dbrelay_admin_columns(dbrelay_request_t *request)
 {
+   dbrelay_log_debug(request, "calling columns");
    request->sql = api->catalogsql(DBRELAY_DBCMD_COLUMNS, request->params);
+   dbrelay_log_debug(request, "sql %s", request->sql);
    return dbrelay_db_run_query(request);
 }
 u_char *dbrelay_admin_pkey(dbrelay_request_t *request)

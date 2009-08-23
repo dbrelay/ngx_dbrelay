@@ -378,12 +378,12 @@ AND   c.CONSTRAINT_NAME = pk.CONSTRAINT_NAME";
          break;
       case DBRELAY_DBCMD_COLUMNS:
          sql = malloc(strlen(columns_mask) + strlen(params[0]));
-         sprintf(columns_mask, params[0]);
+         sprintf(sql, columns_mask, params[0]);
          return sql;
          break;
       case DBRELAY_DBCMD_PKEY: 
          sql = malloc(strlen(pkey_mask) + strlen(params[0]));
-         sprintf(pkey_mask, params[0]);
+         sprintf(sql, pkey_mask, params[0]);
          return sql;
          break;
    }
