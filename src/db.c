@@ -654,8 +654,10 @@ dbrelay_resolve_params(dbrelay_request_t *request, char *sql)
    while (request->params[i]) {
       prevpos = pos;
       pos += dbrelay_find_placeholder(&tmpsql[pos]);
-      if (pos==-1) ; // fix
-      else {
+      if (pos==-1) {
+	 // ignore missing placeholders
+         pos = prevpos;	
+      } else {
          tmpsql[pos]='\0';
          sb_append(sb, &tmpsql[prevpos]);
          if (is_quoted_param(request->params[i])) sb_append(sb, "'");
