@@ -226,6 +226,7 @@ int dbrelay_mssql_exec(void *db, char *sql)
    mssql_db_t *mssql = (mssql_db_t *) db;
    RETCODE rc;
 
+   //fprintf(stderr, "sql = %s\n", sql);
    rc = dbcmd(mssql->dbproc, sql);
    rc = dbsqlexec(mssql->dbproc);
 
@@ -371,6 +372,15 @@ AND   c.TABLE_NAME = pk.TABLE_NAME \
 AND   c.CONSTRAINT_NAME = pk.CONSTRAINT_NAME";
 
    switch (dbcmd) {
+      case DBRELAY_DBCMD_BEGIN:
+         return strdup("BEGIN TRAN");
+         break;
+      case DBRELAY_DBCMD_COMMIT:
+         return strdup("COMMIT TRAN");
+         break;
+      case DBRELAY_DBCMD_ROLLBACK:
+         return strdup("ROLLBACK TRAN");
+         break;
       case DBRELAY_DBCMD_TABLES:
          return strdup("SELECT * FROM INFORMATION_SCHEMA.tables WHERE TABLE_TYPE='BASE TABLE'");
          break;

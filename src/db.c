@@ -551,10 +551,15 @@ dbrelay_exec_query(dbrelay_connection_t *conn, char *database, char *sql, unsign
   if (flags & DBRELAY_FLAG_PP) json_pretty_print(json, 1);
 
   api->change_db(conn->db, database);
+
+  if (flags & DBRELAY_FLAG_XACT) api->exec(conn->db, api->catalogsql(DBRELAY_DBCMD_BEGIN, NULL));
+
   if (api->exec(conn->db, sql))
   {
      dbrelay_db_fill_data(json, conn);
+     if (flags & DBRELAY_FLAG_XACT) api->exec(conn->db, api->catalogsql(DBRELAY_DBCMD_COMMIT, NULL));
   } else {
+     if (flags & DBRELAY_FLAG_XACT) api->exec(conn->db, api->catalogsql(DBRELAY_DBCMD_ROLLBACK, NULL));
      return NULL;
   }
   ret = (u_char *) json_to_string(json);

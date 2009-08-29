@@ -49,10 +49,14 @@
 
 #define DBRELAY_FLAG_ECHOSQL 0x01
 #define DBRELAY_FLAG_PP      0x02
+#define DBRELAY_FLAG_XACT    0x04
 
 #define DBRELAY_DBCMD_TABLES    0
 #define DBRELAY_DBCMD_COLUMNS   1
 #define DBRELAY_DBCMD_PKEY      2
+#define DBRELAY_DBCMD_BEGIN     3
+#define DBRELAY_DBCMD_COMMIT    4
+#define DBRELAY_DBCMD_ROLLBACK  5
 
 #ifdef CMDLINE
    typedef struct ngx_log_s {} ngx_log_t;
