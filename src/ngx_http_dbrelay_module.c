@@ -497,7 +497,7 @@ write_flag_values(dbrelay_request_t *request, char *value)
    char *flags = strdup(value);
    char *tok;
 
-   while ((tok = strsep(&flags, ";"))) {
+   while ((tok = strsep(&flags, ","))) {
       if (!strcmp(tok, "echosql")) request->flags|=DBRELAY_FLAG_ECHOSQL; 
       else if (!strcmp(tok, "pp")) request->flags|=DBRELAY_FLAG_PP; 
       else if (!strcmp(tok, "xact")) request->flags|=DBRELAY_FLAG_XACT; 
