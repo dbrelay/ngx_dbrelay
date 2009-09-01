@@ -111,6 +111,8 @@ int dbrelay_mssql_is_quoted(void *db, int colnum)
        coltype == SYBDATETIMN ||
        coltype == SYBDATETIME ||
        coltype == SYBDATETIME4 || 
+       coltype == SYBBINARY || 
+       coltype == SYBVARBINARY || 
        coltype == SYBUNIQUE) 
           return 1;
    else return 0;
