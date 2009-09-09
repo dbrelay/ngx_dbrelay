@@ -79,12 +79,15 @@ void *dbrelay_mssql_connect(dbrelay_request_t *request)
    DBSETLAPP(mssql->login, tmpbuf);
  
    mssql->dbproc = dbopen(mssql->login, request->sql_server);
+   if (!mssql->dbproc) {
+      free(mssql); 
+      return NULL;
+   }
    dbsetuserdata(mssql->dbproc, (BYTE *)request);
 
    //conn->db = (void *) mssql;
    //conn->login = mssql->login;
    //conn->dbproc = mssql->dbproc;
-
    return (void *) mssql;
 }
 void dbrelay_mssql_close(void *db)
@@ -351,7 +354,7 @@ char *dbrelay_mssql_error(void *db)
 {
    mssql_db_t *mssql = (mssql_db_t *) db;
    
-   if (mssql->dbproc) {
+   if (mssql && mssql->dbproc) {
       dbrelay_request_t *request = (dbrelay_request_t *) dbgetuserdata(mssql->dbproc);
       if (request!=NULL) {
          return request->error_message;

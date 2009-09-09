@@ -475,7 +475,7 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
       }
       if (have_error) {
          dbrelay_db_restart_json(request, &json);
-         dbrelay_log_debug(request, "have error");
+         dbrelay_log_debug(request, "have error %s\n", ret);
          strcpy(error_string, (char *) ret);
       } else if (!IS_SET((char *)ret)) {
          dbrelay_log_warn(request, "Connector returned no information");
@@ -520,6 +520,7 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
 
    free(newsql);
 
+   dbrelay_log_debug(request, "error = %s\n", error_string);
    dbrelay_append_log_json(json, request, error_string);
 
    if (IS_SET(request->js_callback) || IS_SET(request->js_error)) {
