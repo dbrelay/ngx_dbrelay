@@ -212,7 +212,7 @@ static void dbrelay_db_free_connection(dbrelay_connection_t *conn, dbrelay_reque
    conn->in_use--;
    
    if (IS_EMPTY(conn->connection_name)) {
-      api->assign_request(conn->db, NULL);
+      if (conn->db) api->assign_request(conn->db, NULL);
       dbrelay_db_close_connection(conn, request);
    }
 }
