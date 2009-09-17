@@ -1,2 +1,2 @@
-#define DBRELAY_PREFIX "/Users/cbajohr/dev/dbrelay"
-#define DBRELAY_BUILD "7d855cd"
+#define DBRELAY_PREFIX "/tmp/dbrelay"
+#define DBRELAY_BUILD "9fb43b9..."
