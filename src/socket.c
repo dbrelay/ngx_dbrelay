@@ -147,7 +147,7 @@ dbrelay_socket_recv_string(int s, char *in_buf, int *in_ptr, char *out_buf)
          if (DEBUG) printf("in_ptr now %d\n", *in_ptr);
       } else {
          strncpy(&out_buf[out_ptr], &in_buf[*in_ptr], have_space);
-         out_buf[DBRELAY_SOCKET_BUFSIZE]='\0';
+         out_buf[DBRELAY_SOCKET_BUFSIZE-1]='\0';
          *in_ptr += have_space;
          if (DEBUG) printf("in_ptr = %d\n", *in_ptr);
          if (*in_ptr >= DBRELAY_SOCKET_BUFSIZE - 1) *in_ptr=-1;
