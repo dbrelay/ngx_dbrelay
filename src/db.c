@@ -212,7 +212,7 @@ static void dbrelay_db_free_connection(dbrelay_connection_t *conn, dbrelay_reque
    conn->in_use--;
    
    if (IS_EMPTY(conn->connection_name)) {
-      api->assign_request(conn->db, NULL);
+      if (conn->db) api->assign_request(conn->db, NULL);
       dbrelay_db_close_connection(conn, request);
    }
 }
@@ -475,7 +475,7 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
       }
       if (have_error) {
          dbrelay_db_restart_json(request, &json);
-         dbrelay_log_debug(request, "have error");
+         dbrelay_log_debug(request, "have error %s\n", ret);
          strcpy(error_string, (char *) ret);
       } else if (!IS_SET((char *)ret)) {
          dbrelay_log_warn(request, "Connector returned no information");
@@ -520,6 +520,7 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
 
    free(newsql);
 
+   dbrelay_log_debug(request, "error = %s\n", error_string);
    dbrelay_append_log_json(json, request, error_string);
 
    if (IS_SET(request->js_callback) || IS_SET(request->js_error)) {
@@ -621,6 +622,7 @@ dbrelay_alloc_request()
    request = (dbrelay_request_t *) malloc(sizeof(dbrelay_request_t));
    memset(request, '\0', sizeof(dbrelay_request_t));
    request->http_keepalive = 1;
+   //request->flags |= DBRELAY_FLAGS_PP;
 
    return request;
 }

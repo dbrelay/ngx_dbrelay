@@ -53,7 +53,7 @@ dbrelay_conn_send_request(int s, dbrelay_request_t *request, int *error)
    dbrelay_log_debug(request, "SERVER sent");
    dbrelay_conn_set_option(s, "DATABASE", request->sql_database);
    dbrelay_conn_set_option(s, "USER", request->sql_user);
-   //dbrelay_conn_set_option(s, "PASSWORD", request->sql_password);
+   if (request->sql_password && strlen(request->sql_password)) dbrelay_conn_set_option(s, "PASSWORD", request->sql_password);
    sprintf(tmp, "%ld", request->connection_timeout);
    dbrelay_log_info(request, "timeout %s", tmp);
    dbrelay_conn_set_option(s, "TIMEOUT", tmp);
