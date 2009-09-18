@@ -119,6 +119,16 @@ main(int argc, char **argv)
 #endif
                   conn.db = api->connect(&request);
                   connected = 1;
+                  if (!conn.db) {
+	             log_msg("login is null\n"); 
+                     dbrelay_socket_send_string(s2, ":ERROR BEGIN\n");
+                     log_msg("returning error %s\n", api->error(NULL));
+                     dbrelay_socket_send_string(s2, api->error(NULL));
+                     dbrelay_socket_send_string(s2, "\n");
+                     dbrelay_socket_send_string(s2, ":ERROR END\n");
+                     dbrelay_socket_send_string(s2, ":OK\n");
+                     return 0;
+                  }
 #if PERSISTENT_CONN
               }
 #endif
@@ -204,7 +214,10 @@ process_line(char *line)
    else if (check_command(line, "SET PORT", &request.sql_port)) return OK;
    else if (check_command(line, "SET SERVER", &request.sql_server)) return OK;
    else if (check_command(line, "SET DATABASE", &request.sql_database)) return OK;
-   else if (check_command(line, "SET USER", &request.sql_user)) return OK;
+   else if (check_command(line, "SET USER", &request.sql_user)) {
+     log_msg("username %s\n", request.sql_user);
+     return OK;
+   }
    else if (check_command(line, "SET PASSWORD", &request.sql_password)) return OK;
    else if (check_command(line, "SET APPNAME", &request.connection_name)) return OK;
    else if (check_command(line, "SET TIMEOUT", timeout_str)) {
