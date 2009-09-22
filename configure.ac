@@ -78,7 +78,8 @@ if test "$with_odbc"; then
         fi
         odbc=true
         DB_INCS="-I$with_odbc/include"
-        DB_LIBS="$with_odbc/odbc/.libs/libtdsodbc.a"
+        #DB_LIBS="$with_odbc/odbc/.libs/libtdsodbc.a"
+        DB_LIBS="-L $with_odbc/lib -lodbc"
         AC_DEFINE(HAVE_ODBC, 1, [Define to 1 if building with ODBC support.])
         AC_SUBST(DB_LIBS)
         AC_SUBST(DB_INCS)

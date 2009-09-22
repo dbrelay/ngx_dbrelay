@@ -13,4 +13,8 @@ if MYSQL
 dbrelay_LDADD = mysql.o @DB_STATICLIBS@ @LIBS@
 connector_LDADD = mysql.o @DB_STATICLIBS@
 endif
+if ODBC
+dbrelay_LDADD = odbc.o
+connector_LDADD = odbc.o
+endif
 

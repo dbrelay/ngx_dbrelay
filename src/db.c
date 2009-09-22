@@ -17,6 +17,11 @@ extern dbrelay_dbapi_t dbrelay_mysql_api;
 dbrelay_dbapi_t *api = &dbrelay_mysql_api;
 #endif
 
+#ifdef HAVE_ODBC
+extern dbrelay_dbapi_t dbrelay_odbc_api;
+dbrelay_dbapi_t *api = &dbrelay_odbc_api;
+#endif
+
 #define IS_SET(x) (x && strlen(x)>0)
 #define IS_EMPTY(x) (!x || strlen(x)==0)
 #define TRUE 1
