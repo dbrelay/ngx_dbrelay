@@ -36,6 +36,7 @@ dbrelay_dbapi_t dbrelay_mssql_api =
 
 int dbrelay_mssql_msg_handler(DBPROCESS * dbproc, DBINT msgno, int msgstate, int severity, char *msgtext, char *srvname, char *procname, int line);
 int dbrelay_mssql_err_handler(DBPROCESS * dbproc, int severity, int dberr, int oserr, char *dberrstr, char *oserrstr);
+void dbrelay_mssql_free_results(void *db);
 
 
 /* I'm not particularly happy with this, in order to return a detailed message 
@@ -249,7 +250,7 @@ int dbrelay_mssql_rowcount(void *db)
 
    return dbcount(mssql->dbproc);
 }
-int dbrelay_mssql_free_results(void *db)
+void dbrelay_mssql_free_results(void *db)
 {
    mssql_db_t *mssql = (mssql_db_t *) db;
    int i;
