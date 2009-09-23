@@ -31,6 +31,8 @@ static void dbrelay_write_json_log(json_t *json, dbrelay_request_t *request, cha
 void dbrelay_write_json_colinfo(json_t *json, void *db, int colnum, int *maxcolname);
 void dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolname);
 static void dbrelay_db_zero_connection(dbrelay_connection_t *conn, dbrelay_request_t *request);
+static void dbrelay_write_json_column_csv(json_t *json, void *db, int colnum);
+static void dbrelay_write_json_column_std(json_t *json, void *db, int colnum, char *colname);
 
 static void dbrelay_db_populate_connection(dbrelay_request_t *request, dbrelay_connection_t *conn)
 {
@@ -550,6 +552,7 @@ dbrelay_exec_query(dbrelay_connection_t *conn, char *database, char *sql, unsign
   u_char *ret;
  
   if (flags & DBRELAY_FLAG_PP) json_pretty_print(json, 1);
+  if (flags & DBRELAY_FLAG_EMBEDCSV) json_set_mode(json, DBRELAY_JSON_MODE_CSV);
 
   api->change_db(conn->db, database);
 
@@ -589,17 +592,24 @@ int dbrelay_db_fill_data(json_t *json, dbrelay_connection_t *conn)
         }
 	json_end_array(json);
 	json_add_key(json, "rows");
-	json_new_array(json);
+
+	if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_new_array(json);
+        else json_add_json(json, "\"");
 
         while (api->fetch_row(conn->db)) { 
            maxcolname = 0;
-	   json_new_object(json);
+	   if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_new_object(json);
 	   for (colnum=1; colnum<=numcols; colnum++) {
               dbrelay_write_json_column(json, conn->db, colnum, &maxcolname);
+	      if (json_get_mode(json)==DBRELAY_JSON_MODE_CSV && colnum!=numcols) json_add_json(json, ",");
            }
-           json_end_object(json);
+	   if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_end_object(json);
+           else json_add_json(json, "\\n");
         }
-        json_end_array(json);
+
+	if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_end_array(json);
+        else json_add_json(json, "\",");
+
         if (api->rowcount(conn->db)==-1) {
            json_add_null(json, "count");
         } else {
@@ -754,7 +764,7 @@ void dbrelay_write_json_colinfo(json_t *json, void *db, int colnum, int *maxcoln
 }
 void dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolname)
 {
-   char tmp[256], *colname, tmpcolname[256];
+   char *colname, tmpcolname[256];
    int l;
 
    colname = api->colname(db, colnum);
@@ -767,10 +777,32 @@ void dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolna
       }
       strcpy(tmpcolname, colname);
    }
-   if (api->colvalue(db, colnum, tmp)==NULL) 
+
+   if (json_get_mode(json)==DBRELAY_JSON_MODE_CSV)
+      dbrelay_write_json_column_csv(json, db, colnum);
+   else 
+      dbrelay_write_json_column_std(json, db, colnum, colname);
+}
+static void dbrelay_write_json_column_csv(json_t *json, void *db, int colnum)
+{
+   char tmp[256];
+   unsigned char escape = 0;
+
+   if (api->colvalue(db, colnum, tmp)==NULL) return;
+   if (strchr(tmp, ',')) escape = 1;
+   if (escape) json_add_json(json, "\\\"");
+   json_add_json(json, tmp);
+   if (escape) json_add_json(json, "\\\"");
+}
+static void dbrelay_write_json_column_std(json_t *json, void *db, int colnum, char *colname)
+{
+   char tmp[256];
+
+   if (api->colvalue(db, colnum, tmp)==NULL) {
       json_add_null(json, colname);
-   else if (api->is_quoted(db, colnum)) 
-      json_add_string(json, tmpcolname, tmp);
-   else
-      json_add_number(json, tmpcolname, tmp);
+   } else if (api->is_quoted(db, colnum)) {
+      json_add_string(json, colname, tmp);
+   } else {
+      json_add_number(json, colname, tmp);
+   }
 }

@@ -297,6 +297,7 @@ write_flag_values(dbrelay_request_t *request, char *value)
       if (!strcmp(tok, "echosql")) request->flags|=DBRELAY_FLAG_ECHOSQL;
       else if (!strcmp(tok, "pp")) request->flags|=DBRELAY_FLAG_PP;
       else if (!strcmp(tok, "xact")) request->flags|=DBRELAY_FLAG_XACT;
+      else if (!strcmp(tok, "embedcsv")) request->flags|=DBRELAY_FLAG_EMBEDCSV;
    }
    free(flags);
 }
