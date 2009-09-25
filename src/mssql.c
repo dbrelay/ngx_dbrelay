@@ -56,6 +56,7 @@ void *dbrelay_mssql_connect(dbrelay_request_t *request)
    char tmpbuf[30];
    int len; 
    mssql_db_t *mssql = (mssql_db_t *) malloc(sizeof(mssql_db_t));
+   memset(mssql, 0, sizeof(mssql_db_t));
 
    dberrhandle(dbrelay_mssql_err_handler);
    dbmsghandle(dbrelay_mssql_msg_handler);
@@ -93,6 +94,8 @@ void *dbrelay_mssql_connect(dbrelay_request_t *request)
 void dbrelay_mssql_close(void *db)
 {
    mssql_db_t *mssql = (mssql_db_t *) db;
+
+   dbrelay_mssql_free_results(db);
 
    if (mssql->dbproc) dbclose(mssql->dbproc);
    if (mssql->login) dbloginfree(mssql->login);
@@ -246,18 +249,36 @@ int dbrelay_mssql_rowcount(void *db)
 
    return dbcount(mssql->dbproc);
 }
+int dbrelay_mssql_free_results(void *db)
+{
+   mssql_db_t *mssql = (mssql_db_t *) db;
+   int i;
+
+   for (i=0; i<MSSQL_MAX_COLUMNS; i++) {
+      if (mssql->colval[i]!=NULL) {
+         free(mssql->colval[i]);
+         mssql->colval[i]=NULL;
+      }
+   }
+}
 int dbrelay_mssql_has_results(void *db)
 {
    mssql_db_t *mssql = (mssql_db_t *) db;
    int colnum;
+   int colsize;
    int numcols;
    RETCODE rc;
+
+   dbrelay_mssql_free_results(db);
 
    if ((rc = dbresults(mssql->dbproc)) == NO_MORE_RESULTS) return FALSE;
 
    numcols = dbnumcols(mssql->dbproc);
    for (colnum=1; colnum<=numcols; colnum++) {
-      dbbind(mssql->dbproc, colnum, NTBSTRINGBIND, 0, (BYTE *) &(mssql->colval[colnum-1]));
+      colsize = dbrelay_mssql_collen(db, colnum);
+      mssql->colval[colnum-1] = malloc(colsize > 256 ? colsize + 1 : 256);
+      mssql->colval[colnum-1][0] = '\0';
+      dbbind(mssql->dbproc, colnum, NTBSTRINGBIND, 0, (BYTE *) mssql->colval[colnum-1]);
       dbnullbind(mssql->dbproc, colnum, (DBINT *) &(mssql->colnull[colnum-1]));
    }
    return TRUE;
