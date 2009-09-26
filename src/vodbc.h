@@ -16,6 +16,7 @@ typedef struct odbc_db_s {
    SQLHENV env;
    SQLHDBC dbc;
    SQLHSTMT stmt;
+   unsigned char querying;
    char tmpbuf[256];
 } odbc_db_t;
 

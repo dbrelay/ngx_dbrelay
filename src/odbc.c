@@ -40,14 +40,15 @@ void *dbrelay_odbc_connect(dbrelay_request_t *request)
    odbc_db_t *odbc = (odbc_db_t *)malloc(sizeof(odbc_db_t));
    SQLRETURN ret;
 
-   SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &odbc->env);
-   SQLAllocHandle(SQL_HANDLE_DBC, &odbc->env, &odbc->dbc);
+   SQLAllocEnv(&odbc->env);
+   SQLAllocConnect(odbc->env, &odbc->dbc);
 
-   ret = SQLDriverConnect(odbc->dbc, NULL, request->sql_server, SQL_NTS, NULL, 0, NULL, SQL_DRIVER_COMPLETE);
+   ret = SQLConnect(odbc->dbc, (SQLCHAR *) request->sql_server, SQL_NTS, (SQLCHAR *) request->sql_user, SQL_NTS, (SQLCHAR *) request->sql_password, SQL_NTS);
 
-   if (SQL_SUCCEEDED(ret)) {
-      if (odbc->dbc) SQLFreeHandle(SQL_HANDLE_ENV, odbc->env);
-      if (odbc->env) SQLFreeHandle(SQL_HANDLE_ENV, odbc->env);
+   if (! SQL_SUCCEEDED(ret)) {
+      if (odbc->dbc) SQLFreeConnect(odbc->dbc);
+      if (odbc->env) SQLFreeEnv(odbc->env);
+      free(odbc);
       return NULL;
    }
 
@@ -191,7 +192,7 @@ unsigned char dbrelay_odbc_has_length(int coltype)
 }
 unsigned char dbrelay_odbc_has_prec(int coltype)
 {
-	if (coltype==SQL_DECIMAL || SQL_NUMERIC)
+	if (coltype==SQL_DECIMAL || coltype==SQL_NUMERIC) 
 		return 1;
 	else
 		return 0;
@@ -212,9 +213,11 @@ int dbrelay_odbc_exec(void *db, char *sql)
    odbc_db_t *odbc = (odbc_db_t *) db;
    SQLRETURN ret;
 
-   SQLAllocHandle(SQL_HANDLE_STMT, &odbc->dbc, &odbc->stmt);
+   SQLAllocStmt(odbc->dbc, &odbc->stmt);
 
    ret = SQLExecDirect(odbc->stmt, sql, SQL_NTS);
+   odbc->querying = 1;
+
    if (SQL_SUCCEEDED(ret)) return TRUE;
    return FALSE;
 }
@@ -234,8 +237,13 @@ int dbrelay_odbc_has_results(void *db)
    SQLRETURN ret;
    SQLSMALLINT numcols;
 
-   ret = SQLNumResultCols(odbc->stmt, &numcols);
-   if (numcols==0) return FALSE;
+   if (odbc->querying) {
+      odbc->querying = 0;
+      return TRUE;
+   }
+
+   ret = SQLMoreResults(odbc->stmt);
+   if (ret==SQL_NO_DATA) return FALSE;
    return TRUE;
 }
 int dbrelay_odbc_numcols(void *db)
@@ -278,7 +286,16 @@ int dbrelay_odbc_collen(void *db, int colnum)
 }
 int dbrelay_odbc_colprec(void *db, int colnum)
 {
-   return dbrelay_odbc_collen(db, colnum);
+   odbc_db_t *odbc = (odbc_db_t *) db;
+   SQLSMALLINT coltype;
+   SQLULEN collen;
+   
+   SQLDescribeCol(odbc->stmt, colnum, NULL, 0, NULL, &coltype, &collen, NULL, NULL); 
+   fprintf(stderr, "coltype = %ld\n", coltype);
+   if (dbrelay_odbc_has_prec(coltype)) {
+       return collen;
+    }
+    return 0;
 }
 int dbrelay_odbc_colscale(void *db, int colnum)
 {
@@ -310,5 +327,5 @@ char *dbrelay_odbc_colvalue(void *db, int colnum, char *dest)
 
 char *dbrelay_odbc_error(void *db)
 {
-    return NULL;
+    return "";
 }
