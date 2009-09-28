@@ -29,7 +29,9 @@ dbrelay_dbapi_t dbrelay_odbc_api =
    &dbrelay_odbc_colscale,
    &dbrelay_odbc_fetch_row,
    &dbrelay_odbc_colvalue,
-   &dbrelay_odbc_error
+   &dbrelay_odbc_error,
+   &dbrelay_odbc_catalogsql,
+   &dbrelay_odbc_isalive
 };
 
 void dbrelay_odbc_init()
@@ -39,15 +41,21 @@ void *dbrelay_odbc_connect(dbrelay_request_t *request)
 {
    odbc_db_t *odbc = (odbc_db_t *)malloc(sizeof(odbc_db_t));
    SQLRETURN ret;
+   SQLCHAR sqlstate[6];
+   SQLCHAR message[255];
+   SQLINTEGER errnum;
 
-   SQLAllocEnv(&odbc->env);
-   SQLAllocConnect(odbc->env, &odbc->dbc);
+   SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &odbc->env);
+   SQLSetEnvAttr(odbc->env, SQL_ATTR_ODBC_VERSION, (SQLPOINTER) (SQL_OV_ODBC3), SQL_IS_UINTEGER);
+   SQLAllocHandle(SQL_HANDLE_DBC, odbc->env, &odbc->dbc);
 
    ret = SQLConnect(odbc->dbc, (SQLCHAR *) request->sql_server, SQL_NTS, (SQLCHAR *) request->sql_user, SQL_NTS, (SQLCHAR *) request->sql_password, SQL_NTS);
 
    if (! SQL_SUCCEEDED(ret)) {
-      if (odbc->dbc) SQLFreeConnect(odbc->dbc);
-      if (odbc->env) SQLFreeEnv(odbc->env);
+      SQLGetDiagRec(SQL_HANDLE_DBC, odbc->dbc, 1, sqlstate, &errnum, message, sizeof(message), NULL);
+      //fprintf(stderr, "sqlstate %s %ld (%s)\n", sqlstate, errnum, message);
+      if (odbc->dbc) SQLFreeHandle(SQL_HANDLE_DBC, odbc->dbc);
+      if (odbc->env) SQLFreeHandle(SQL_HANDLE_ENV, odbc->env);
       free(odbc);
       return NULL;
    }
@@ -58,7 +66,7 @@ void dbrelay_odbc_close(void *db)
 {
    odbc_db_t *odbc = (odbc_db_t *) db;
 
-   if (odbc->stmt) SQLFreeHandle(SQL_HANDLE_DBC, odbc->stmt);
+   if (odbc->stmt) SQLFreeHandle(SQL_HANDLE_STMT, odbc->stmt);
    if (odbc->dbc) {
       SQLDisconnect(odbc->dbc);
       SQLFreeHandle(SQL_HANDLE_DBC, odbc->dbc);
@@ -213,9 +221,9 @@ int dbrelay_odbc_exec(void *db, char *sql)
    odbc_db_t *odbc = (odbc_db_t *) db;
    SQLRETURN ret;
 
-   SQLAllocStmt(odbc->dbc, &odbc->stmt);
+   SQLAllocHandle(SQL_HANDLE_STMT, odbc->dbc, &odbc->stmt);
 
-   ret = SQLExecDirect(odbc->stmt, sql, SQL_NTS);
+   ret = SQLExecDirect(odbc->stmt, (SQLCHAR *) sql, SQL_NTS);
    odbc->querying = 1;
 
    if (SQL_SUCCEEDED(ret)) return TRUE;
@@ -235,7 +243,6 @@ int dbrelay_odbc_has_results(void *db)
 {
    odbc_db_t *odbc = (odbc_db_t *) db;
    SQLRETURN ret;
-   SQLSMALLINT numcols;
 
    if (odbc->querying) {
       odbc->querying = 0;
@@ -261,7 +268,7 @@ char *dbrelay_odbc_colname(void *db, int colnum)
    SQLSMALLINT namelen;
    char tmpbuf[256];
 
-   SQLDescribeCol(odbc->stmt, colnum, odbc->tmpbuf, 256, &namelen, NULL, NULL, NULL, NULL); 
+   SQLDescribeCol(odbc->stmt, colnum, (SQLCHAR *) odbc->tmpbuf, 256, &namelen, NULL, NULL, NULL, NULL); 
    tmpbuf[namelen]='\0';
 
    return odbc->tmpbuf;
@@ -291,7 +298,6 @@ int dbrelay_odbc_colprec(void *db, int colnum)
    SQLULEN collen;
    
    SQLDescribeCol(odbc->stmt, colnum, NULL, 0, NULL, &coltype, &collen, NULL, NULL); 
-   fprintf(stderr, "coltype = %ld\n", coltype);
    if (dbrelay_odbc_has_prec(coltype)) {
        return collen;
     }
@@ -328,4 +334,14 @@ char *dbrelay_odbc_colvalue(void *db, int colnum, char *dest)
 char *dbrelay_odbc_error(void *db)
 {
     return "";
+}
+char *dbrelay_odbc_catalogsql(int dbcmd, char **params)
+{
+   /* XXX - stub for now */
+    return NULL;
+}
+int dbrelay_odbc_isalive(void *db)
+{
+   /* XXX - stub for now */
+   return 1;
 }

@@ -39,5 +39,7 @@ int dbrelay_odbc_colscale(void *db, int colnum);
 int dbrelay_odbc_fetch_row(void *db);
 char *dbrelay_odbc_colvalue(void *db, int colnum, char *dest);
 char *dbrelay_odbc_error(void *db);
+char *dbrelay_odbc_catalogsql(int dbcmd, char **params);
+int dbrelay_odbc_isalive(void *db);
 
 #endif
