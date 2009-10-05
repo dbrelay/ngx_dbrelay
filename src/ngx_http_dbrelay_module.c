@@ -117,14 +117,14 @@ ngx_http_dbrelay_exit_master(ngx_cycle_t *cycle)
 static void
 ngx_http_dbrelay_request_body_handler(ngx_http_request_t *r)
 {
-    size_t                    root;
-    ngx_str_t                 path;
-    ngx_log_t                 *log;
+    //size_t                    root;
+    //ngx_str_t                 path;
+    //ngx_log_t                 *log;
     ngx_int_t                 rc;
 
-    log = r->connection->log;
+    //log = r->connection->log;
 
-    ngx_http_map_uri_to_path(r, &path, &root, 0);
+    //ngx_http_map_uri_to_path(r, &path, &root, 0);
 #if 0
     /* is GET method? */
     if (r->args.len>0) {
@@ -136,8 +136,8 @@ ngx_http_dbrelay_request_body_handler(ngx_http_request_t *r)
             "buf: \"%s\"", r->request_body->buf->pos);
     } 
 #endif
-    ngx_log_error(NGX_LOG_DEBUG, log, 0,
-        "buf: \"%s\"", r->request_body->bufs->buf->pos);
+    //ngx_log_error(NGX_LOG_DEBUG, log, 0,
+        //"buf: \"%s\"", r->request_body->bufs->buf->pos);
     rc = ngx_http_dbrelay_send_response(r);
 }
 
@@ -284,12 +284,14 @@ ngx_http_dbrelay_handler(ngx_http_request_t *r)
     clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
 
     ngx_log_error(NGX_LOG_DEBUG, log, 0, "here2");
+#if 0
     if (r->method == NGX_HTTP_GET || r->method == NGX_HTTP_HEAD) {
         rc = ngx_http_discard_request_body(r);
         if (rc != NGX_OK) return rc;
         return ngx_http_dbrelay_send_response(r);
     }
     /* else POST method */
+#endif
 
     rc = ngx_http_read_client_request_body(r, ngx_http_dbrelay_request_body_handler);
 
