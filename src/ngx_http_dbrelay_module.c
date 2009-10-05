@@ -504,6 +504,7 @@ write_flag_values(dbrelay_request_t *request, char *value)
       else if (!strcmp(tok, "pp")) request->flags|=DBRELAY_FLAG_PP; 
       else if (!strcmp(tok, "xact")) request->flags|=DBRELAY_FLAG_XACT; 
       else if (!strcmp(tok, "embedcsv")) request->flags|=DBRELAY_FLAG_EMBEDCSV; 
+      else if (!strcmp(tok, "nomagic")) request->flags|=DBRELAY_FLAG_NOMAGIC; 
    }
    free(flags);
 }

@@ -673,7 +673,7 @@ dbrelay_resolve_params(dbrelay_request_t *request, char *sql)
    char *ret;
    char *tmpsql = strdup(sql);
 
-   if (IS_SET(DBRELAY_MAGIC)) {
+   if (IS_SET(DBRELAY_MAGIC) && !(request->flags & DBRELAY_FLAG_NOMAGIC)) {
       sb_append(sb, DBRELAY_MAGIC);
    }
    while (request->params[i]) {
