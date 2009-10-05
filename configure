@@ -704,6 +704,7 @@ MYSQL_TRUE
 MYSQL_FALSE
 ODBC_TRUE
 ODBC_FALSE
+DBRELAY_MAGIC
 DBRELAY_EXTRA_LIBS
 LIBOBJS
 LTLIBOBJS'
@@ -1302,6 +1303,7 @@ Optional Packages:
   --with-freetds=DIR      build with support for FreeTDS in DIR
   --with-mysql=DIR        build with support for MySQL in DIR
   --with-odbc=DIR         build with support for ODBC in DIR
+  --with-magic=MAGIC      prepend MAGIC to beginning of each query.
 
 Some influential environment variables:
   CC          C compiler command
@@ -4656,6 +4658,17 @@ else
 fi
 
 
+
+# Check whether --with-magic was given.
+if test "${with_magic+set}" = set; then
+  withval=$with_magic;
+fi
+
+if test "$with_magic"; then
+	DBRELAY_MAGIC=$with_magic
+
+fi
+
 { echo "$as_me:$LINENO: checking for semun" >&5
 echo $ECHO_N "checking for semun... $ECHO_C" >&6; }
 if test "${ac_cv_type_semun+set}" = set; then
@@ -5719,12 +5732,13 @@ MYSQL_TRUE!$MYSQL_TRUE$ac_delim
 MYSQL_FALSE!$MYSQL_FALSE$ac_delim
 ODBC_TRUE!$ODBC_TRUE$ac_delim
 ODBC_FALSE!$ODBC_FALSE$ac_delim
+DBRELAY_MAGIC!$DBRELAY_MAGIC$ac_delim
 DBRELAY_EXTRA_LIBS!$DBRELAY_EXTRA_LIBS$ac_delim
 LIBOBJS!$LIBOBJS$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 92; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 93; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

@@ -89,6 +89,13 @@ if test "$with_odbc"; then
 fi
 AM_CONDITIONAL(ODBC, test "$odbc" = "true")
 
+AC_ARG_WITH(magic,
+AS_HELP_STRING([--with-magic=MAGIC], [prepend MAGIC to beginning of each query.]))
+if test "$with_magic"; then
+	DBRELAY_MAGIC=$with_magic
+	AC_SUBST(DBRELAY_MAGIC)
+fi
+
 AC_CHECK_TYPES([semun])
 if test "$ac_cv_type_semun" = "no"; then
   AC_MSG_CHECKING(if sem.h defines semun)
