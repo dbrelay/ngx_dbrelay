@@ -317,6 +317,7 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     u_char *json_output;
     dbrelay_request_t *request;
     size_t len;
+    int cplength;
 
     log = r->connection->log;
 
@@ -344,7 +345,9 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     
     log->action = "sending response to client";
 
-    strncpy(request->remote_addr, (char *) r->connection->addr_text.data, DBRELAY_OBJ_SZ);
+    cplength = r->connection->addr_text.len > DBRELAY_OBJ_SZ - 1 ? DBRELAY_OBJ_SZ - 1 : r->connection->addr_text.len;
+    strncpy(request->remote_addr, (char *) r->connection->addr_text.data, cplength);
+    request->remote_addr[cplength] = '\0';
 
     if (strlen(request->cmd)) json_output = (u_char *) dbrelay_db_cmd(request);
     else if (request->status) json_output = (u_char *) dbrelay_db_status(request);
