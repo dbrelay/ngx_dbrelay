@@ -38,7 +38,19 @@ void dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolna
 static void dbrelay_db_zero_connection(dbrelay_connection_t *conn, dbrelay_request_t *request);
 static void dbrelay_write_json_column_csv(json_t *json, void *db, int colnum);
 static void dbrelay_write_json_column_std(json_t *json, void *db, int colnum, char *colname);
+static unsigned char dbrelay_is_unnamed_column(char *colname);
 
+static unsigned char dbrelay_is_unnamed_column(char *colname)
+{
+   /* For queries such as 'select 1'
+    * SQL Server uses a blank column name
+    * PostgreSQL and Vertica use "?column?"
+    */
+   if (!IS_SET(colname) || !strcmp(colname, "?column?")) 
+      return 1;
+   else
+      return 0;
+}
 static void dbrelay_db_populate_connection(dbrelay_request_t *request, dbrelay_connection_t *conn)
 {
    memset(conn, '\0', sizeof(dbrelay_connection_t));
@@ -742,7 +754,7 @@ void dbrelay_write_json_colinfo(json_t *json, void *db, int colnum, int *maxcoln
 
    json_new_object(json);
    colname = api->colname(db, colnum);
-   if (!IS_SET(colname)) {
+   if (dbrelay_is_unnamed_column(colname)) {
       sprintf(tmpcolname, "%d", ++(*maxcolname));
       json_add_string(json, "name", tmpcolname);
    } else {
@@ -777,7 +789,7 @@ void dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolna
    int l;
 
    colname = api->colname(db, colnum);
-   if (!IS_SET(colname)) {
+   if (dbrelay_is_unnamed_column(colname)) {
       sprintf(tmpcolname, "%d", ++(*maxcolname));
    } else {
       l = atoi(colname); 
