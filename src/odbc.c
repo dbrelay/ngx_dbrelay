@@ -8,7 +8,7 @@
 
 #define IS_SET(x) (x && strlen(x)>0)
 
-static char *dbrelay_odbc_get_error(void *db);
+static void dbrelay_odbc_get_error(void *db);
 
 dbrelay_dbapi_t dbrelay_odbc_api = 
 {
@@ -335,7 +335,7 @@ char *dbrelay_odbc_colvalue(void *db, int colnum, char *dest)
    return dest;
 }
 
-static char *dbrelay_odbc_get_error(void *db)
+static void dbrelay_odbc_get_error(void *db)
 {
    odbc_db_t *odbc = (odbc_db_t *) db;
    SQLCHAR sqlstate[6];
