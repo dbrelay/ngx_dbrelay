@@ -802,7 +802,7 @@ void dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolna
    if (json_get_mode(json)==DBRELAY_JSON_MODE_CSV)
       dbrelay_write_json_column_csv(json, db, colnum);
    else 
-      dbrelay_write_json_column_std(json, db, colnum, colname);
+      dbrelay_write_json_column_std(json, db, colnum, tmpcolname);
 }
 static void dbrelay_write_json_column_csv(json_t *json, void *db, int colnum)
 {
@@ -819,6 +819,7 @@ static void dbrelay_write_json_column_std(json_t *json, void *db, int colnum, ch
 {
    char tmp[256];
 
+   fprintf(stderr, "colname = %s\n", colname);
    if (api->colvalue(db, colnum, tmp)==NULL) {
       json_add_null(json, colname);
    } else if (api->is_quoted(db, colnum)) {
