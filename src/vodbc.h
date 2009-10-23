@@ -18,6 +18,7 @@ typedef struct odbc_db_s {
    SQLHSTMT stmt;
    unsigned char querying;
    char tmpbuf[256];
+   SQLCHAR error_message[256];
 } odbc_db_t;
 
 void dbrelay_odbc_init();

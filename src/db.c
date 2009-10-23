@@ -514,7 +514,8 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
         if (ret==NULL) {
            dbrelay_db_restart_json(request, &json);
    	   dbrelay_log_debug(request, "error");
-           strcpy(error_string, request->error_message);
+           //strcpy(error_string, request->error_message);
+           strcpy(error_string, api->error(conn->db));
         } else {
            json_add_json(json, ", ");
            json_add_json(json, (char *) ret);

@@ -8,6 +8,7 @@
 
 #define IS_SET(x) (x && strlen(x)>0)
 
+static char *dbrelay_odbc_get_error(void *db);
 
 dbrelay_dbapi_t dbrelay_odbc_api = 
 {
@@ -227,7 +228,10 @@ int dbrelay_odbc_exec(void *db, char *sql)
    odbc->querying = 1;
 
    if (SQL_SUCCEEDED(ret)) return TRUE;
-   return FALSE;
+   else {
+      dbrelay_odbc_get_error(db);
+      return FALSE;
+   }
 }
 int dbrelay_odbc_rowcount(void *db)
 {
@@ -331,9 +335,19 @@ char *dbrelay_odbc_colvalue(void *db, int colnum, char *dest)
    return dest;
 }
 
+static char *dbrelay_odbc_get_error(void *db)
+{
+   odbc_db_t *odbc = (odbc_db_t *) db;
+   SQLCHAR sqlstate[6];
+   SQLINTEGER errnum;
+
+   SQLGetDiagRec(SQL_HANDLE_STMT, odbc->stmt, 1, sqlstate, &errnum, odbc->error_message, sizeof(odbc->error_message)-1, NULL);
+}
+
 char *dbrelay_odbc_error(void *db)
 {
-    return "";
+   odbc_db_t *odbc = (odbc_db_t *) db;
+   return (char *) odbc->error_message;
 }
 char *dbrelay_odbc_catalogsql(int dbcmd, char **params)
 {
