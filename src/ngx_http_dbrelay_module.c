@@ -119,10 +119,11 @@ ngx_http_dbrelay_request_body_handler(ngx_http_request_t *r)
 {
     //size_t                    root;
     //ngx_str_t                 path;
-    //ngx_log_t                 *log;
+    ngx_log_t                 *log;
     ngx_int_t                 rc;
 
-    //log = r->connection->log;
+    log = r->connection->log;
+    ngx_log_error(NGX_LOG_INFO, log, 0, "entering dbrelay_request_body_handler");
 
     //ngx_http_map_uri_to_path(r, &path, &root, 0);
 #if 0
@@ -139,6 +140,7 @@ ngx_http_dbrelay_request_body_handler(ngx_http_request_t *r)
     //ngx_log_error(NGX_LOG_DEBUG, log, 0,
         //"buf: \"%s\"", r->request_body->bufs->buf->pos);
     rc = ngx_http_dbrelay_send_response(r);
+    ngx_log_error(NGX_LOG_INFO, log, 0, "exiting dbrelay_request_body_handler");
 }
 
 /*
@@ -300,6 +302,7 @@ ngx_http_dbrelay_handler(ngx_http_request_t *r)
         return rc;
     }
 
+    ngx_log_error(NGX_LOG_INFO, log, 0, "exiting dbrelay_handler");
     return NGX_DONE;
     //return ngx_http_dbrelay_send_response(r);
 }
