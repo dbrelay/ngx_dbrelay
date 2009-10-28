@@ -686,6 +686,7 @@ dbrelay_alloc_request()
    request = (dbrelay_request_t *) malloc(sizeof(dbrelay_request_t));
    memset(request, '\0', sizeof(dbrelay_request_t));
    request->http_keepalive = 1;
+   request->connection_timeout = 60;
    //request->flags |= DBRELAY_FLAGS_PP;
 
    return request;
