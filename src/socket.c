@@ -90,10 +90,23 @@ dbrelay_socket_connect(char *sock_path)
 
    return s;
 }
-void
+int
 dbrelay_socket_send_string(int s, char *str)
 {
-   send(s, str, strlen(str), NET_FLAGS);
+   ssize_t bytes_sent;
+   ssize_t bytes_to_send = strlen(str);
+   int pos = 0;
+
+   while (bytes_to_send > 0) {
+   	bytes_sent = send(s, &str[pos], bytes_to_send, NET_FLAGS);
+	if (bytes_sent == -1) {
+           if (DEBUG) perror("send");
+           return -1;
+        }
+	bytes_to_send -= bytes_sent;
+	pos += bytes_sent;
+   }
+   return 0;
 }
 int
 dbrelay_socket_recv_string(int s, char *in_buf, int *in_ptr, char *out_buf)

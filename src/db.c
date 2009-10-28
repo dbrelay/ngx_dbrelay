@@ -527,6 +527,8 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
       // internal error
       if (have_error==2) {
          dbrelay_log_error(request, "Error occurred on socket %s (PID: %u)", conn->sock_path, conn->helper_pid);
+         // socket error of some sort, kill the connector to be safe and let it restart on its own
+         dbrelay_conn_kill(s);
       }
       if (have_error) {
          dbrelay_db_restart_json(request, &json);
