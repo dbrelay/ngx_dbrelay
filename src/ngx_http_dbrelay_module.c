@@ -328,6 +328,8 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     ngx_log_error(NGX_LOG_INFO, log, 0, "parsing query_string");
     /* is GET method? */
     if (r->method==NGX_HTTP_GET || r->method==NGX_HTTP_HEAD) { //r->args.len>0) {
+        ngx_log_error(NGX_LOG_DEBUG, log, 0, "args length %l", r->args.len);
+        ngx_log_error(NGX_LOG_DEBUG, log, 0, "last byte %d", (int) r->args.data[r->args.len-1]);
 	parse_get_query_string(r->args, request);
     } else
     /* is POST method? */
@@ -594,3 +596,4 @@ void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request)
    *v='\0';
    write_value(request, key, value);
 }
+
