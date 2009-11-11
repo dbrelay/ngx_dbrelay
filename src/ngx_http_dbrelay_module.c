@@ -443,10 +443,13 @@ write_value(dbrelay_request_t *request, char *key, char *value)
    for (i=0;i<strlen(value);i++) {
       if (value[i]=='+') value[i]=' ';
    }
+   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "unescaped value pass 1 %s", value);
 
    dst = (u_char *) value; src = (u_char *) value;
    ngx_unescape_uri(&dst, &src, strlen(value), 0);
+   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "prev last byte %d", (int) *dst);
    *dst = '\0';
+   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "unescaped value pass 2 %s", value);
 
    if (!strcmp(key, "cmd")) {
       copy_value(request->cmd, value, DBRELAY_OBJ_SZ);
@@ -579,6 +582,7 @@ void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request)
       if (*s=='&') {
          *k='\0';
 	 *v='\0';
+         ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "escaped value %s", value);
 	 write_value(request, key, value);
          target=0;
          k=key;
@@ -594,6 +598,7 @@ void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request)
    *k='\0';
    while (v>=value && (*v=='\n' || *v=='\r')) *v--='\0';
    *v='\0';
+   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "escaped value %s", value);
    write_value(request, key, value);
 }
 
