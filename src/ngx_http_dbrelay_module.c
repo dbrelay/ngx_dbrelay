@@ -25,6 +25,8 @@ static ngx_int_t ngx_http_dbrelay_send_response(ngx_http_request_t *r);
 ngx_int_t ngx_http_dbrelay_init_master(ngx_log_t *log);
 void ngx_http_dbrelay_exit_master(ngx_cycle_t *cycle);
 static void write_flag_values(dbrelay_request_t *request, char *value);
+static unsigned int accepts_application_json(ngx_http_request_t *r);
+static u_char *get_header_value(ngx_http_request_t *r, char *header_key);
 
 static ngx_command_t  ngx_http_dbrelay_commands[] = {
 
@@ -113,7 +115,65 @@ ngx_http_dbrelay_exit_master(ngx_cycle_t *cycle)
    dbrelay_release_shmem(connections);
    dbrelay_destroy_shmem();
 }
+static unsigned int
+accepts_application_json(ngx_http_request_t *r)
+{
+    u_char        *header_value;
+    unsigned int   have = 0;
+    char          *s, *s2;
 
+    /*
+     Note: WebKit and IE Accept headers are hopelessly broken, we are
+     looking for a user agent that accepts application/json regardless
+     of ordering or weight, otherwise we will serve text/plain.
+     */
+    header_value = get_header_value(r, "Accept");
+    if (header_value) {
+       s = strtok((char *)header_value, ",");
+       if (s) do {
+          /* eliminate ;q= qualifier */
+          for (s2 = s; *s2; s2++) {
+             if (*s2==';') *s2='\0'; break;
+          }
+          if (!strcmp("application/json", s)) have = 1;
+          s = strtok(NULL, ",");
+       } while (s);
+       free(header_value);
+    }
+    return have;
+}
+static u_char *
+get_header_value(ngx_http_request_t *r, char *header_key)
+{
+    ngx_list_part_t              *part;
+    ngx_table_elt_t              *header;
+    u_char *retstr;
+    u_int i;
+
+    part = &r->headers_in.headers.part;
+    header = part->elts;
+
+    for (i = 0; /* void */; i++) {
+
+        if (i >= part->nelts) {
+            if (part->next == NULL) {
+                break;
+            }
+
+            part = part->next;
+            header = part->elts;
+            i = 0;
+        }
+
+        if (!strncmp(header_key, (char *) header[i].key.data, header[i].key.len)) {
+           retstr = (u_char *) malloc(header[i].value.len);
+           memcpy(retstr, header[i].value.data, header[i].value.len);
+           retstr[header[i].value.len]='\0';
+           return retstr;
+        }
+    }
+    return NULL;
+}
 static void
 ngx_http_dbrelay_request_body_handler(ngx_http_request_t *r)
 {
@@ -317,6 +377,7 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     u_char *json_output;
     dbrelay_request_t *request;
     size_t len;
+    u_char *header_value;
 
     log = r->connection->log;
 
@@ -371,9 +432,19 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     //b->memory = 1;
     b->last_buf = 1;
 
-    r->headers_out.content_type.len = sizeof("text/plain") - 1;
-    /* FUTURE: change to application/json */
-    r->headers_out.content_type.data = (u_char *) "text/plain";
+
+    header_value = get_header_value(r, "Accept");
+    if (header_value) {
+       ngx_log_error(NGX_LOG_DEBUG, log, 0, "Accept: \"%s\"", header_value);
+       free(header_value);
+    }
+    if (accepts_application_json(r)) {
+       r->headers_out.content_type.len = sizeof("application/json") - 1;
+       r->headers_out.content_type.data = (u_char *) "application/json";
+    } else {
+       r->headers_out.content_type.len = sizeof("text/plain") - 1;
+       r->headers_out.content_type.data = (u_char *) "text/plain";
+    }
     r->headers_out.status = NGX_HTTP_OK;
     r->headers_out.content_length_n = len;
     r->headers_out.last_modified_time = 23349600;
