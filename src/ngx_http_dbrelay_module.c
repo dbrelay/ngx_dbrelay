@@ -14,6 +14,7 @@
 
 typedef struct {
     ngx_http_upstream_conf_t   upstream;
+    ngx_str_t   origin;
 } ngx_http_dbrelay_loc_conf_t;
 
 void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request);
@@ -35,6 +36,13 @@ static ngx_command_t  ngx_http_dbrelay_commands[] = {
       ngx_http_dbrelay_set,
       0,
       0,
+      NULL },
+
+    { ngx_string("dbrelay_origin"),
+      NGX_HTTP_LOC_CONF|NGX_CONF_TAKE1,
+      ngx_conf_set_str_slot,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      offsetof(ngx_http_dbrelay_loc_conf_t,origin),
       NULL },
 
       ngx_null_command
@@ -322,9 +330,12 @@ ngx_http_dbrelay_handler(ngx_http_request_t *r)
     ngx_int_t                  rc;
     ngx_log_t                 *log;
     ngx_http_core_loc_conf_t  *clcf;
+    ngx_http_dbrelay_loc_conf_t  *vlcf;
 
     log = r->connection->log;
     ngx_log_error(NGX_LOG_INFO, log, 0, "dbrelay_handler called");
+
+    vlcf = ngx_http_get_module_loc_conf(r, ngx_http_dbrelay_module);
 
     if (!(r->method & (NGX_HTTP_GET|NGX_HTTP_HEAD|NGX_HTTP_POST))) {
         ngx_log_error(NGX_LOG_WARN, log, 0, "unsupported method, returning not allowed");
@@ -474,6 +485,7 @@ ngx_http_dbrelay_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 static void *
 ngx_http_dbrelay_create_loc_conf(ngx_conf_t *cf)
 {
+    //ngx_str_t default_origin = ngx_string("*");
     ngx_http_dbrelay_loc_conf_t  *conf;
 
 #if HAVE_FREETDS
@@ -484,6 +496,7 @@ ngx_http_dbrelay_create_loc_conf(ngx_conf_t *cf)
     if (conf == NULL) {
         return NGX_CONF_ERROR;
     }
+    //conf->origin = default_origin;
     return conf;
 }
 static void 
