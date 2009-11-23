@@ -389,6 +389,8 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     dbrelay_request_t *request;
     size_t len;
     u_char *header_value;
+    //struct sockaddr_in *sin;
+    //struct hostent *hent;
 
     log = r->connection->log;
 
@@ -413,10 +415,14 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
 
     ngx_log_error(NGX_LOG_INFO, log, 0, "sql_server: \"%s\"", request->sql_server);
     if (request->sql) ngx_log_error(NGX_LOG_DEBUG, log, 0, "sql: \"%s\"", request->sql);
-    
+	    
     log->action = "sending response to client";
 
     strncpy(request->remote_addr, (char *) r->connection->addr_text.data, DBRELAY_OBJ_SZ);
+    //sin = (struct sockaddr_in *) r->connection->sockaddr;
+    //hent = gethostbyaddr(&(sin->sin_addr.s_addr), r->connection->socklen, AF_INET);
+    //if (!hent) ngx_log_error(NGX_LOG_DEBUG, log, 0, "gethostbyaddr returned error (%d)", errno);
+    //ngx_log_error(NGX_LOG_DEBUG, log, 0, "remote hostname: \"%s\"", hent->h_name);
 
     if (strlen(request->cmd)) json_output = (u_char *) dbrelay_db_cmd(request);
     else if (request->status) json_output = (u_char *) dbrelay_db_status(request);
