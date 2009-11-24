@@ -56,7 +56,6 @@ int set_timer(int secs)
   it.it_value.tv_sec = secs; 
   it.it_value.tv_usec = 0;
   setitimer(ITIMER_REAL, &it,0);
-  signal(SIGALRM,timeout); 
 }
 
 int
@@ -94,6 +93,9 @@ main(int argc, char **argv)
 
    log_open();
    log_msg("Using socket path %s\n", sock_path);
+
+   // register SIGALRM handler
+   signal(SIGALRM,timeout); 
 
    for (;;) {
       done = 0;
