@@ -196,7 +196,7 @@ process_line(char *line)
       log_msg("line: %s\n", line);
       if (!line || strlen(line)<8 || strncmp(line, ":SQL END", 8)) {
       	sb_append(sb_sql, line);
-      	sb_append(sb_sql, "\n");
+      	//sb_append(sb_sql, "\n");
         return CONT;
       }
    } 
