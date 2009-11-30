@@ -437,6 +437,7 @@ static dbrelay_connection_t *dbrelay_wait_for_connection(dbrelay_request_t *requ
          *s = dbrelay_socket_connect(conn->sock_path, 10);
          // if connect fails, remove connector from list
          if (*s==-1) {
+            dbrelay_log_warn(request, "can't connect to helper, cleaning up");
             dbrelay_cleanup_connector(conn);
             free(conn);
             connections = dbrelay_time_get_shmem(request);
