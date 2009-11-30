@@ -79,12 +79,15 @@ void *dbrelay_mssql_connect(dbrelay_request_t *request)
    DBSETLAPP(mssql->login, tmpbuf);
  
    mssql->dbproc = dbopen(mssql->login, request->sql_server);
+   if (!mssql->dbproc) {
+      free(mssql); 
+      return NULL;
+   }
    dbsetuserdata(mssql->dbproc, (BYTE *)request);
 
    //conn->db = (void *) mssql;
    //conn->login = mssql->login;
    //conn->dbproc = mssql->dbproc;
-
    return (void *) mssql;
 }
 void dbrelay_mssql_close(void *db)
@@ -111,6 +114,8 @@ int dbrelay_mssql_is_quoted(void *db, int colnum)
        coltype == SYBDATETIMN ||
        coltype == SYBDATETIME ||
        coltype == SYBDATETIME4 || 
+       coltype == SYBBINARY || 
+       coltype == SYBVARBINARY || 
        coltype == SYBUNIQUE) 
           return 1;
    else return 0;
@@ -228,6 +233,7 @@ int dbrelay_mssql_exec(void *db, char *sql)
    mssql_db_t *mssql = (mssql_db_t *) db;
    RETCODE rc;
 
+   //fprintf(stderr, "sql = %s\n", sql);
    rc = dbcmd(mssql->dbproc, sql);
    rc = dbsqlexec(mssql->dbproc);
 
@@ -350,7 +356,7 @@ char *dbrelay_mssql_error(void *db)
 {
    mssql_db_t *mssql = (mssql_db_t *) db;
    
-   if (mssql->dbproc) {
+   if (mssql && mssql->dbproc) {
       dbrelay_request_t *request = (dbrelay_request_t *) dbgetuserdata(mssql->dbproc);
       if (request!=NULL) {
          return request->error_message;
@@ -373,6 +379,15 @@ AND   c.TABLE_NAME = pk.TABLE_NAME \
 AND   c.CONSTRAINT_NAME = pk.CONSTRAINT_NAME";
 
    switch (dbcmd) {
+      case DBRELAY_DBCMD_BEGIN:
+         return strdup("BEGIN TRAN");
+         break;
+      case DBRELAY_DBCMD_COMMIT:
+         return strdup("COMMIT TRAN");
+         break;
+      case DBRELAY_DBCMD_ROLLBACK:
+         return strdup("ROLLBACK TRAN");
+         break;
       case DBRELAY_DBCMD_TABLES:
          return strdup("SELECT * FROM INFORMATION_SCHEMA.tables WHERE TABLE_TYPE='BASE TABLE'");
          break;

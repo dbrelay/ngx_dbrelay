@@ -77,15 +77,24 @@ if test "$with_odbc"; then
                 with_odbc="$PWD/$with_odbc"
         fi
         odbc=true
+        AC_CHECK_LIB(iodbc, SQLConnect, [DB_LIBS="-L$with_odbc/lib -liodbc"],
+                [AC_CHECK_LIB(odbc, SQLConnect, [DB_LIBS="-L$with_odbc/lib -lodbc"])] )
         DB_INCS="-I$with_odbc/include"
-        DB_LIBS="$with_odbc/odbc/.libs/libtdsodbc.a"
         AC_DEFINE(HAVE_ODBC, 1, [Define to 1 if building with ODBC support.])
         AC_SUBST(DB_LIBS)
         AC_SUBST(DB_INCS)
         DB_MODULE="odbc.c"
         AC_SUBST(DB_MODULE)
+
 fi
 AM_CONDITIONAL(ODBC, test "$odbc" = "true")
+
+AC_ARG_WITH(magic,
+AS_HELP_STRING([--with-magic=MAGIC], [prepend MAGIC to beginning of each query.]))
+if test "$with_magic"; then
+	DBRELAY_MAGIC=$with_magic
+	AC_SUBST(DBRELAY_MAGIC)
+fi
 
 AC_CHECK_TYPES([semun])
 if test "$ac_cv_type_semun" = "no"; then

@@ -57,6 +57,7 @@ CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DBRELAY_BUILD = @DBRELAY_BUILD@
 DBRELAY_EXTRA_LIBS = @DBRELAY_EXTRA_LIBS@
+DBRELAY_MAGIC = @DBRELAY_MAGIC@
 DB_INCS = @DB_INCS@
 DB_LIBS = @DB_LIBS@
 DB_MODULE = @DB_MODULE@
@@ -315,6 +316,7 @@ dbrelay_config.h: Makefile
 	echo '#define DBRELAY_PREFIX "$(prefix)"' >$@
 #	git show --abbrev-commit | grep "^commit" | awk '{print "#define DBRELAY_BUILD \"" $$2 "\""}' >>$@
 	echo "#define DBRELAY_BUILD \"@DBRELAY_BUILD@\"" >>$@
+	echo "#define DBRELAY_MAGIC \"@DBRELAY_MAGIC@\"" >>$@
 
 all-am: dbrelay_config.h
 # Tell versions [3.59,3.63) of GNU make to not export all variables.

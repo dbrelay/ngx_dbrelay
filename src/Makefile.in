@@ -51,12 +51,15 @@ am_connector_OBJECTS = db.$(OBJEXT) log.$(OBJEXT) json.$(OBJEXT) \
 	stringbuf.$(OBJEXT) shmem.$(OBJEXT) client.$(OBJEXT) \
 	socket.$(OBJEXT) connector.$(OBJEXT)
 connector_OBJECTS = $(am_connector_OBJECTS)
+@FREETDS_FALSE@@MYSQL_FALSE@@ODBC_TRUE@connector_DEPENDENCIES =  \
+@FREETDS_FALSE@@MYSQL_FALSE@@ODBC_TRUE@	odbc.o
 @FREETDS_FALSE@@MYSQL_TRUE@connector_DEPENDENCIES = mysql.o
 @FREETDS_TRUE@connector_DEPENDENCIES = mssql.o
 am_dbrelay_OBJECTS = db.$(OBJEXT) log.$(OBJEXT) json.$(OBJEXT) \
 	stringbuf.$(OBJEXT) shmem.$(OBJEXT) client.$(OBJEXT) \
 	socket.$(OBJEXT) main.$(OBJEXT) admin.$(OBJEXT)
 dbrelay_OBJECTS = $(am_dbrelay_OBJECTS)
+@FREETDS_FALSE@@MYSQL_FALSE@@ODBC_TRUE@dbrelay_DEPENDENCIES = odbc.o
 @FREETDS_FALSE@@MYSQL_TRUE@dbrelay_DEPENDENCIES = mysql.o
 @FREETDS_TRUE@dbrelay_DEPENDENCIES = mssql.o
 DEFAULT_INCLUDES = -I. -I$(top_builddir)/include@am__isrc@
@@ -87,6 +90,7 @@ CPPFLAGS = @CPPFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DBRELAY_BUILD = @DBRELAY_BUILD@
 DBRELAY_EXTRA_LIBS = @DBRELAY_EXTRA_LIBS@
+DBRELAY_MAGIC = @DBRELAY_MAGIC@
 DB_INCS = @DB_INCS@
 DB_LIBS = @DB_LIBS@
 DB_MODULE = @DB_MODULE@
@@ -170,8 +174,10 @@ connector_SOURCES = dbrelay.h db.c log.c json.c stringbuf.c shmem.c client.c soc
 EXTRA_dbrelay_SOURCES = mssql.h mssql.c vmysql.h mysql.c
 @FREETDS_TRUE@dbrelay_LDADD = mssql.o @DB_STATICLIBS@ @LIBS@
 @MYSQL_TRUE@dbrelay_LDADD = mysql.o @DB_STATICLIBS@ @LIBS@
+@ODBC_TRUE@dbrelay_LDADD = odbc.o
 @FREETDS_TRUE@connector_LDADD = mssql.o @DB_STATICLIBS@
 @MYSQL_TRUE@connector_LDADD = mysql.o @DB_STATICLIBS@
+@ODBC_TRUE@connector_LDADD = odbc.o
 all: all-am
 
 .SUFFIXES:

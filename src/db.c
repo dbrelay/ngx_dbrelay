@@ -17,6 +17,11 @@ extern dbrelay_dbapi_t dbrelay_mysql_api;
 dbrelay_dbapi_t *api = &dbrelay_mysql_api;
 #endif
 
+#ifdef HAVE_ODBC
+extern dbrelay_dbapi_t dbrelay_odbc_api;
+dbrelay_dbapi_t *api = &dbrelay_odbc_api;
+#endif
+
 #define IS_SET(x) (x && strlen(x)>0)
 #define IS_EMPTY(x) (!x || strlen(x)==0)
 #define TRUE 1
@@ -31,12 +36,55 @@ static void dbrelay_write_json_log(json_t *json, dbrelay_request_t *request, cha
 void dbrelay_write_json_colinfo(json_t *json, void *db, int colnum, int *maxcolname);
 void dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolname);
 static void dbrelay_db_zero_connection(dbrelay_connection_t *conn, dbrelay_request_t *request);
+static void dbrelay_write_json_column_csv(json_t *json, void *db, int colnum);
+static void dbrelay_write_json_column_std(json_t *json, void *db, int colnum, char *colname);
+static unsigned char dbrelay_is_unnamed_column(char *colname);
+dbrelay_connection_t *dbrelay_time_get_shmem(dbrelay_request_t *request);
+void dbrelay_time_release_shmem(dbrelay_request_t *request, dbrelay_connection_t *connections);
+static int calc_time(struct timeval *start, struct timeval *now);
 
-static void dbrelay_db_populate_connection(dbrelay_request_t *request, dbrelay_connection_t *conn)
+dbrelay_connection_t *dbrelay_time_get_shmem(dbrelay_request_t *request)
+{
+   struct timeval start;
+   struct timeval now;
+   dbrelay_connection_t *connections;
+
+   gettimeofday(&start, NULL);
+   connections = dbrelay_get_shmem();
+   gettimeofday(&now, NULL);
+   dbrelay_log_debug(request, "shmem attach time %d", calc_time(&start, &now));
+   return connections;
+}
+void dbrelay_time_release_shmem(dbrelay_request_t *request, dbrelay_connection_t *connections)
+{
+   struct timeval start;
+   struct timeval now;
+
+   gettimeofday(&start, NULL);
+   dbrelay_release_shmem(connections);
+   gettimeofday(&now, NULL);
+   dbrelay_log_debug(request, "shmem release time %d", calc_time(&start, &now));
+}
+static unsigned char dbrelay_is_unnamed_column(char *colname)
+{
+   /* For queries such as 'select 1'
+    * SQL Server uses a blank column name
+    * PostgreSQL and Vertica use "?column?"
+    */
+   if (!IS_SET(colname) || !strcmp(colname, "?column?")) 
+      return 1;
+   else
+      return 0;
+}
+static void *dbrelay_db_open_connection(dbrelay_request_t *request)
+{
+   api->init();
+   return api->connect(request);
+}
+static void dbrelay_db_populate_connection(dbrelay_request_t *request, dbrelay_connection_t *conn, void *db)
 {
    memset(conn, '\0', sizeof(dbrelay_connection_t));
 
-   api->init();
 
    /* copy parameters necessary to do connection hash match */
    if (IS_SET(request->sql_server)) 
@@ -72,7 +120,7 @@ static void dbrelay_db_populate_connection(dbrelay_request_t *request, dbrelay_c
       return;
    }
 
-   conn->db = api->connect(request);
+   conn->db = db;
       
    conn->tm_create = time(NULL);
    conn->tm_accessed = time(NULL);
@@ -83,9 +131,15 @@ static void dbrelay_db_populate_connection(dbrelay_request_t *request, dbrelay_c
 static int dbrelay_db_alloc_connection(dbrelay_request_t *request)
 {
    int i, slot = -1;
-
+   void *dbconn = NULL;
    dbrelay_connection_t *connections;
-   connections = dbrelay_get_shmem();
+
+   /* connect to database outside holding shared mem */
+   if (!IS_SET(request->connection_name)) {
+      dbconn = dbrelay_db_open_connection(request);
+   }
+
+   connections = dbrelay_time_get_shmem(request);
 
    for (i=0; i<DBRELAY_MAX_CONN; i++) {
      if (connections[i].pid==0) {
@@ -97,14 +151,15 @@ static int dbrelay_db_alloc_connection(dbrelay_request_t *request)
    /* we have exhausted the pool, log something sensible and return error */
    if (slot==-1) {
       dbrelay_log_error(request, "No free connections available!");
-      dbrelay_release_shmem(connections);
+      dbrelay_time_release_shmem(request, connections);
+      if (dbconn) api->close(dbconn);
       return -1;
    }
 
-   dbrelay_db_populate_connection(request, &connections[slot]);
+   dbrelay_db_populate_connection(request, &connections[slot], dbconn);
    dbrelay_log_debug(request, "allocating slot %d to request", slot);
    connections[slot].slot = slot;
-   dbrelay_release_shmem(connections);
+   dbrelay_time_release_shmem(request, connections);
    return slot;
 }
 static unsigned int match(char *s1, char *s2)
@@ -134,7 +189,7 @@ static unsigned int dbrelay_db_find_connection(dbrelay_request_t *request)
 
    dbrelay_log_debug(request, "find_connection called");
    dbrelay_connection_t *connections;
-   connections = dbrelay_get_shmem();
+   connections = dbrelay_time_get_shmem(request);
    for (i=0; i<DBRELAY_MAX_CONN; i++) {
       conn = &connections[i];
       if (conn->pid!=0) {
@@ -143,12 +198,12 @@ static unsigned int dbrelay_db_find_connection(dbrelay_request_t *request)
             conn->in_use++;
             conn->tm_accessed = time(NULL);
             //api->assign_request(conn->db, request);
-            dbrelay_release_shmem(connections);		
+            dbrelay_time_release_shmem(request, connections);
             return i;
          }
       }
    }
-   dbrelay_release_shmem(connections);		
+   dbrelay_time_release_shmem(request, connections);
    return -1;
 }
 void dbrelay_db_close_connection(dbrelay_connection_t *conn, dbrelay_request_t *request)
@@ -182,7 +237,7 @@ static void dbrelay_db_close_connections(dbrelay_request_t *request)
    time_t now;
 
    now = time(NULL);
-   connections = dbrelay_get_shmem();
+   connections = dbrelay_time_get_shmem(request);
    for (i=0; i<DBRELAY_MAX_CONN; i++) {
       conn = &connections[i];
       if (conn->pid && !IS_SET(conn->connection_name) && kill(conn->pid, 0)) {
@@ -205,14 +260,14 @@ static void dbrelay_db_close_connections(dbrelay_request_t *request)
          dbrelay_db_close_connection(conn, request);
       }
    }
-   dbrelay_release_shmem(connections);
+   dbrelay_time_release_shmem(request, connections);
 }
 static void dbrelay_db_free_connection(dbrelay_connection_t *conn, dbrelay_request_t *request)
 {
    conn->in_use--;
    
    if (IS_EMPTY(conn->connection_name)) {
-      api->assign_request(conn->db, NULL);
+      if (conn->db) api->assign_request(conn->db, NULL);
       dbrelay_db_close_connection(conn, request);
    }
 }
@@ -263,7 +318,7 @@ u_char *dbrelay_db_status(dbrelay_request_t *request)
    json_add_key(json, "connections");
    json_new_array(json);
 
-   connections = dbrelay_get_shmem();
+   connections = dbrelay_time_get_shmem(request);
 
    for (i=0; i<DBRELAY_MAX_CONN; i++) {
      conn = &connections[i];
@@ -295,7 +350,7 @@ u_char *dbrelay_db_status(dbrelay_request_t *request)
      }
    }
 
-   dbrelay_release_shmem(connections);
+   dbrelay_time_release_shmem(request, connections);
 
    json_end_array(json);
    json_end_object(json);
@@ -369,11 +424,11 @@ static dbrelay_connection_t *dbrelay_wait_for_connection(dbrelay_request_t *requ
          return NULL;
       }
 
-      connections = dbrelay_get_shmem();
+      connections = dbrelay_time_get_shmem(request);
       conn = (dbrelay_connection_t *) malloc(sizeof(dbrelay_connection_t));
       memcpy(conn, &connections[slot], sizeof(dbrelay_connection_t));
       conn->slot = slot;
-      dbrelay_release_shmem(connections);
+      dbrelay_time_release_shmem(request, connections);
 
       if (IS_SET(request->connection_name)) {
          dbrelay_log_info(request, "connecting to connection helper");
@@ -383,9 +438,9 @@ static dbrelay_connection_t *dbrelay_wait_for_connection(dbrelay_request_t *requ
          if (*s==-1) {
             unlink(conn->sock_path);
             free(conn);
-            connections = dbrelay_get_shmem();
+            connections = dbrelay_time_get_shmem(request);
             connections[slot].pid=0;
-            dbrelay_release_shmem(connections);
+            dbrelay_time_release_shmem(request, connections);
          }
       }
   } while (*s==-1);
@@ -472,10 +527,12 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
       // internal error
       if (have_error==2) {
          dbrelay_log_error(request, "Error occurred on socket %s (PID: %u)", conn->sock_path, conn->helper_pid);
+         // socket error of some sort, kill the connector to be safe and let it restart on its own
+         dbrelay_conn_kill(s);
       }
       if (have_error) {
          dbrelay_db_restart_json(request, &json);
-         dbrelay_log_debug(request, "have error");
+         dbrelay_log_debug(request, "have error %s\n", ret);
          strcpy(error_string, (char *) ret);
       } else if (!IS_SET((char *)ret)) {
          dbrelay_log_warn(request, "Connector returned no information");
@@ -507,7 +564,8 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
         if (ret==NULL) {
            dbrelay_db_restart_json(request, &json);
    	   dbrelay_log_debug(request, "error");
-           strcpy(error_string, request->error_message);
+           //strcpy(error_string, request->error_message);
+           strcpy(error_string, api->error(conn->db));
         } else {
            json_add_json(json, ", ");
            json_add_json(json, (char *) ret);
@@ -520,6 +578,7 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
 
    free(newsql);
 
+   dbrelay_log_debug(request, "error = %s\n", error_string);
    dbrelay_append_log_json(json, request, error_string);
 
    if (IS_SET(request->js_callback) || IS_SET(request->js_error)) {
@@ -530,14 +589,14 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
    json_free(json);
    dbrelay_log_debug(request, "Query completed, freeing connection.");
 
-   connections = dbrelay_get_shmem();
+   connections = dbrelay_time_get_shmem(request);
    /* set time accessed at end of processing so that long queries do not
     * become eligible for being timed out immediately.  
     */
    conn = &connections[slot];
    conn->tm_accessed = time(NULL);
    dbrelay_db_free_connection(conn, request);
-   dbrelay_release_shmem(connections);
+   dbrelay_time_release_shmem(request, connections);
 
    return ret;
 }
@@ -549,12 +608,18 @@ dbrelay_exec_query(dbrelay_connection_t *conn, char *database, char *sql, unsign
   u_char *ret;
  
   if (flags & DBRELAY_FLAG_PP) json_pretty_print(json, 1);
+  if (flags & DBRELAY_FLAG_EMBEDCSV) json_set_mode(json, DBRELAY_JSON_MODE_CSV);
 
   api->change_db(conn->db, database);
+
+  if (flags & DBRELAY_FLAG_XACT) api->exec(conn->db, api->catalogsql(DBRELAY_DBCMD_BEGIN, NULL));
+
   if (api->exec(conn->db, sql))
   {
      dbrelay_db_fill_data(json, conn);
+     if (flags & DBRELAY_FLAG_XACT) api->exec(conn->db, api->catalogsql(DBRELAY_DBCMD_COMMIT, NULL));
   } else {
+     if (flags & DBRELAY_FLAG_XACT) api->exec(conn->db, api->catalogsql(DBRELAY_DBCMD_ROLLBACK, NULL));
      return NULL;
   }
   ret = (u_char *) json_to_string(json);
@@ -583,17 +648,24 @@ int dbrelay_db_fill_data(json_t *json, dbrelay_connection_t *conn)
         }
 	json_end_array(json);
 	json_add_key(json, "rows");
-	json_new_array(json);
+
+	if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_new_array(json);
+        else json_add_json(json, "\"");
 
         while (api->fetch_row(conn->db)) { 
            maxcolname = 0;
-	   json_new_object(json);
+	   if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_new_object(json);
 	   for (colnum=1; colnum<=numcols; colnum++) {
               dbrelay_write_json_column(json, conn->db, colnum, &maxcolname);
+	      if (json_get_mode(json)==DBRELAY_JSON_MODE_CSV && colnum!=numcols) json_add_json(json, ",");
            }
-           json_end_object(json);
+	   if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_end_object(json);
+           else json_add_json(json, "\\n");
         }
-        json_end_array(json);
+
+	if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_end_array(json);
+        else json_add_json(json, "\",");
+
         if (api->rowcount(conn->db)==-1) {
            json_add_null(json, "count");
         } else {
@@ -616,6 +688,8 @@ dbrelay_alloc_request()
    request = (dbrelay_request_t *) malloc(sizeof(dbrelay_request_t));
    memset(request, '\0', sizeof(dbrelay_request_t));
    request->http_keepalive = 1;
+   request->connection_timeout = 60;
+   //request->flags |= DBRELAY_FLAGS_PP;
 
    return request;
 }
@@ -651,6 +725,9 @@ dbrelay_resolve_params(dbrelay_request_t *request, char *sql)
    char *ret;
    char *tmpsql = strdup(sql);
 
+   if (IS_SET(DBRELAY_MAGIC) && !(request->flags & DBRELAY_FLAG_NOMAGIC)) {
+      sb_append(sb, DBRELAY_MAGIC);
+   }
    while (request->params[i]) {
       prevpos = pos;
       pos += dbrelay_find_placeholder(&tmpsql[pos]);
@@ -716,7 +793,7 @@ void dbrelay_write_json_colinfo(json_t *json, void *db, int colnum, int *maxcoln
 
    json_new_object(json);
    colname = api->colname(db, colnum);
-   if (!IS_SET(colname)) {
+   if (dbrelay_is_unnamed_column(colname)) {
       sprintf(tmpcolname, "%d", ++(*maxcolname));
       json_add_string(json, "name", tmpcolname);
    } else {
@@ -747,11 +824,11 @@ void dbrelay_write_json_colinfo(json_t *json, void *db, int colnum, int *maxcoln
 }
 void dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolname)
 {
-   char tmp[256], *colname, tmpcolname[256];
+   char *colname, tmpcolname[256];
    int l;
 
    colname = api->colname(db, colnum);
-   if (!IS_SET(colname)) {
+   if (dbrelay_is_unnamed_column(colname)) {
       sprintf(tmpcolname, "%d", ++(*maxcolname));
    } else {
       l = atoi(colname); 
@@ -760,10 +837,40 @@ void dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolna
       }
       strcpy(tmpcolname, colname);
    }
-   if (api->colvalue(db, colnum, tmp)==NULL) 
-      json_add_null(json, colname);
-   else if (api->is_quoted(db, colnum)) 
-      json_add_string(json, tmpcolname, tmp);
-   else
-      json_add_number(json, tmpcolname, tmp);
+
+   if (json_get_mode(json)==DBRELAY_JSON_MODE_CSV)
+      dbrelay_write_json_column_csv(json, db, colnum);
+   else 
+      dbrelay_write_json_column_std(json, db, colnum, tmpcolname);
 }
+static void dbrelay_write_json_column_csv(json_t *json, void *db, int colnum)
+{
+   char tmp[256];
+   unsigned char escape = 0;
+
+   if (api->colvalue(db, colnum, tmp)==NULL) return;
+   if (strchr(tmp, ',')) escape = 1;
+   if (escape) json_add_json(json, "\\\"");
+   json_add_json(json, tmp);
+   if (escape) json_add_json(json, "\\\"");
+}
+static void dbrelay_write_json_column_std(json_t *json, void *db, int colnum, char *colname)
+{
+   char tmp[256];
+
+   if (api->colvalue(db, colnum, tmp)==NULL) {
+      json_add_null(json, colname);
+   } else if (api->is_quoted(db, colnum)) {
+      json_add_string(json, colname, tmp);
+   } else {
+      json_add_number(json, colname, tmp);
+   }
+}
+static int calc_time(struct timeval *start, struct timeval *now)
+{
+   int secs = now->tv_sec - start->tv_sec;
+   int usecs = now->tv_usec - start->tv_usec;
+   //printf("%s: %ld usecs\n", text, secs * 1000000 + usecs);
+   return (secs * 1000000 + usecs);
+}
+

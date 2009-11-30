@@ -217,6 +217,14 @@ void json_end_callback(json_t *json)
 {
    sb_append(json->sb, ");");
 }
+void json_set_mode(json_t *json, unsigned char mode)
+{
+   json->mode = mode;
+}
+unsigned char json_get_mode(json_t *json)
+{
+   return json->mode;
+}
 /*
 main()
 {

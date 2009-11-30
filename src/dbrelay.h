@@ -49,10 +49,16 @@
 
 #define DBRELAY_FLAG_ECHOSQL 0x01
 #define DBRELAY_FLAG_PP      0x02
+#define DBRELAY_FLAG_XACT    0x04
+#define DBRELAY_FLAG_EMBEDCSV    0x08
+#define DBRELAY_FLAG_NOMAGIC    0x10
 
 #define DBRELAY_DBCMD_TABLES    0
 #define DBRELAY_DBCMD_COLUMNS   1
 #define DBRELAY_DBCMD_PKEY      2
+#define DBRELAY_DBCMD_BEGIN     3
+#define DBRELAY_DBCMD_COMMIT    4
+#define DBRELAY_DBCMD_ROLLBACK  5
 
 #ifdef CMDLINE
    typedef struct ngx_log_s {} ngx_log_t;
@@ -179,7 +185,7 @@ key_t dbrelay_get_ipc_key();
 
 /* connection.c */
 char *dbrelay_conn_send_request(int s, dbrelay_request_t *request, int *error);
-void dbrelay_conn_set_option(int s, char *option, char *value);
+int dbrelay_conn_set_option(int s, char *option, char *value);
 pid_t dbrelay_conn_launch_connector(char *sock_path);
 u_char *dbrelay_exec_query(dbrelay_connection_t *conn, char *database, char *sql, unsigned long flags); 
 void dbrelay_conn_kill(int s);
@@ -191,6 +197,6 @@ u_char *dbrelay_db_cmd(dbrelay_request_t *request);
 /* socket.c */
 int dbrelay_socket_connect(char *sock_path);
 int dbrelay_socket_recv_string(int s, char *in_buf, int *in_ptr, char *out_buf);
-void dbrelay_socket_send_string(int s, char *str);
+int dbrelay_socket_send_string(int s, char *str);
 
 #endif /* _DBRELAY_H_INCLUDED_ */

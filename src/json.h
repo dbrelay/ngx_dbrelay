@@ -7,6 +7,9 @@
 #define ARRAY 0
 #define OBJECT 1
 
+#define DBRELAY_JSON_MODE_STD 0
+#define DBRELAY_JSON_MODE_CSV 1
+
 typedef struct json_node_s {
    int node_type;
    int num_items;
@@ -19,6 +22,7 @@ typedef struct json_s {
    json_node_t *stack;
    int pending;
    unsigned char prettyprint;
+   unsigned char mode;
 } json_t;
 
 
@@ -40,5 +44,8 @@ void json_add_null(json_t *json, char *key);
 void json_push(json_t *json, int node_type);
 void json_add_callback(json_t *json, char *value);
 void json_end_callback(json_t *json);
+
+void json_set_mode(json_t *json, unsigned char mode);
+unsigned char json_get_mode(json_t *json);
 
 #endif /* _JSON_H_INCLUDED_ */

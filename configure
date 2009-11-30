@@ -704,6 +704,7 @@ MYSQL_TRUE
 MYSQL_FALSE
 ODBC_TRUE
 ODBC_FALSE
+DBRELAY_MAGIC
 DBRELAY_EXTRA_LIBS
 LIBOBJS
 LTLIBOBJS'
@@ -1302,6 +1303,7 @@ Optional Packages:
   --with-freetds=DIR      build with support for FreeTDS in DIR
   --with-mysql=DIR        build with support for MySQL in DIR
   --with-odbc=DIR         build with support for ODBC in DIR
+  --with-magic=MAGIC      prepend MAGIC to beginning of each query.
 
 Some influential environment variables:
   CC          C compiler command
@@ -4504,8 +4506,138 @@ if test "$with_odbc"; then
                 with_odbc="$PWD/$with_odbc"
         fi
         odbc=true
+        { echo "$as_me:$LINENO: checking for SQLConnect in -liodbc" >&5
+echo $ECHO_N "checking for SQLConnect in -liodbc... $ECHO_C" >&6; }
+if test "${ac_cv_lib_iodbc_SQLConnect+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-liodbc  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char SQLConnect ();
+int
+main ()
+{
+return SQLConnect ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  ac_cv_lib_iodbc_SQLConnect=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_lib_iodbc_SQLConnect=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_iodbc_SQLConnect" >&5
+echo "${ECHO_T}$ac_cv_lib_iodbc_SQLConnect" >&6; }
+if test $ac_cv_lib_iodbc_SQLConnect = yes; then
+  DB_LIBS="-L$with_odbc/lib -liodbc"
+else
+  { echo "$as_me:$LINENO: checking for SQLConnect in -lodbc" >&5
+echo $ECHO_N "checking for SQLConnect in -lodbc... $ECHO_C" >&6; }
+if test "${ac_cv_lib_odbc_SQLConnect+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lodbc  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char SQLConnect ();
+int
+main ()
+{
+return SQLConnect ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  ac_cv_lib_odbc_SQLConnect=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_lib_odbc_SQLConnect=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_odbc_SQLConnect" >&5
+echo "${ECHO_T}$ac_cv_lib_odbc_SQLConnect" >&6; }
+if test $ac_cv_lib_odbc_SQLConnect = yes; then
+  DB_LIBS="-L$with_odbc/lib -lodbc"
+fi
+
+fi
+
         DB_INCS="-I$with_odbc/include"
-        DB_LIBS="$with_odbc/odbc/.libs/libtdsodbc.a"
 
 cat >>confdefs.h <<\_ACEOF
 #define HAVE_ODBC 1
@@ -4514,6 +4646,7 @@ _ACEOF
 
 
         DB_MODULE="odbc.c"
+
 
 fi
  if test "$odbc" = "true"; then
@@ -4524,6 +4657,17 @@ else
   ODBC_FALSE=
 fi
 
+
+
+# Check whether --with-magic was given.
+if test "${with_magic+set}" = set; then
+  withval=$with_magic;
+fi
+
+if test "$with_magic"; then
+	DBRELAY_MAGIC=$with_magic
+
+fi
 
 { echo "$as_me:$LINENO: checking for semun" >&5
 echo $ECHO_N "checking for semun... $ECHO_C" >&6; }
@@ -5588,12 +5732,13 @@ MYSQL_TRUE!$MYSQL_TRUE$ac_delim
 MYSQL_FALSE!$MYSQL_FALSE$ac_delim
 ODBC_TRUE!$ODBC_TRUE$ac_delim
 ODBC_FALSE!$ODBC_FALSE$ac_delim
+DBRELAY_MAGIC!$DBRELAY_MAGIC$ac_delim
 DBRELAY_EXTRA_LIBS!$DBRELAY_EXTRA_LIBS$ac_delim
 LIBOBJS!$LIBOBJS$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 92; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 93; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

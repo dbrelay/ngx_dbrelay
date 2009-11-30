@@ -56,7 +56,6 @@ int set_timer(int secs)
   it.it_value.tv_sec = secs; 
   it.it_value.tv_usec = 0;
   setitimer(ITIMER_REAL, &it,0);
-  signal(SIGALRM,timeout); 
 }
 
 int
@@ -95,6 +94,9 @@ main(int argc, char **argv)
    log_open();
    log_msg("Using socket path %s\n", sock_path);
 
+   // register SIGALRM handler
+   signal(SIGALRM,timeout); 
+
    for (;;) {
       done = 0;
       // wait for connection
@@ -119,6 +121,16 @@ main(int argc, char **argv)
 #endif
                   conn.db = api->connect(&request);
                   connected = 1;
+                  if (!conn.db) {
+	             log_msg("login is null\n"); 
+                     dbrelay_socket_send_string(s2, ":ERROR BEGIN\n");
+                     log_msg("returning error %s\n", api->error(NULL));
+                     dbrelay_socket_send_string(s2, api->error(NULL));
+                     dbrelay_socket_send_string(s2, "\n");
+                     dbrelay_socket_send_string(s2, ":ERROR END\n");
+                     dbrelay_socket_send_string(s2, ":OK\n");
+                     return 0;
+                  }
 #if PERSISTENT_CONN
               }
 #endif
@@ -127,8 +139,9 @@ main(int argc, char **argv)
               log_msg("addr = %lu\n", results);
               if (results == NULL) {
 	         log_msg("results are null\n"); 
+                 log_msg("error is %s\n", api->error(conn.db));
                  dbrelay_socket_send_string(s2, ":ERROR BEGIN\n");
-                 dbrelay_socket_send_string(s2, request.error_message);
+                 dbrelay_socket_send_string(s2, api->error(conn.db));
                  dbrelay_socket_send_string(s2, "\n");
                  dbrelay_socket_send_string(s2, ":ERROR END\n");
               } else {
@@ -183,7 +196,7 @@ process_line(char *line)
       log_msg("line: %s\n", line);
       if (!line || strlen(line)<8 || strncmp(line, ":SQL END", 8)) {
       	sb_append(sb_sql, line);
-      	sb_append(sb_sql, "\n");
+      	//sb_append(sb_sql, "\n");
         return CONT;
       }
    } 
@@ -204,7 +217,10 @@ process_line(char *line)
    else if (check_command(line, "SET PORT", &request.sql_port)) return OK;
    else if (check_command(line, "SET SERVER", &request.sql_server)) return OK;
    else if (check_command(line, "SET DATABASE", &request.sql_database)) return OK;
-   else if (check_command(line, "SET USER", &request.sql_user)) return OK;
+   else if (check_command(line, "SET USER", &request.sql_user)) {
+     log_msg("username %s\n", request.sql_user);
+     return OK;
+   }
    else if (check_command(line, "SET PASSWORD", &request.sql_password)) return OK;
    else if (check_command(line, "SET APPNAME", &request.connection_name)) return OK;
    else if (check_command(line, "SET TIMEOUT", timeout_str)) {

@@ -16,7 +16,9 @@ typedef struct odbc_db_s {
    SQLHENV env;
    SQLHDBC dbc;
    SQLHSTMT stmt;
+   unsigned char querying;
    char tmpbuf[256];
+   SQLCHAR error_message[256];
 } odbc_db_t;
 
 void dbrelay_odbc_init();
@@ -38,5 +40,7 @@ int dbrelay_odbc_colscale(void *db, int colnum);
 int dbrelay_odbc_fetch_row(void *db);
 char *dbrelay_odbc_colvalue(void *db, int colnum, char *dest);
 char *dbrelay_odbc_error(void *db);
+char *dbrelay_odbc_catalogsql(int dbcmd, char **params);
+int dbrelay_odbc_isalive(void *db);
 
 #endif

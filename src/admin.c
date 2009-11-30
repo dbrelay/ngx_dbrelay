@@ -15,6 +15,7 @@ int dbrelay_admin_kill(dbrelay_request_t *request, char *sock_path);
 u_char *dbrelay_admin_tables(dbrelay_request_t *request);
 u_char *dbrelay_admin_columns(dbrelay_request_t *request);
 u_char *dbrelay_admin_pkey(dbrelay_request_t *request);
+static int check_params(char **params, int needed);
 
 extern dbrelay_dbapi_t *api;
 
@@ -27,6 +28,14 @@ char *dbrelay_admin_result_text(int ret)
       default: return "unknown result";
    }
 }
+static int check_params(char **params, int needed)
+{
+   int i;
+
+   for (i=0; i<needed; i++)
+      if (params[0]==NULL) return 0;
+   return 1;
+}
 u_char *dbrelay_db_cmd(dbrelay_request_t *request)
 {
    json_t *json = json_new();
@@ -34,15 +43,18 @@ u_char *dbrelay_db_cmd(dbrelay_request_t *request)
    u_char *json_output;
 
    if (!strcmp(request->cmd, "kill")) {
-      if (request->params[0]==NULL) {
+      if (!check_params(request->params, 1)) 
          return (u_char *) dbrelay_json_error("No parameter specified");
-      }
       ret = dbrelay_admin_kill(request, request->params[0]);
    } else if (!strcmp(request->cmd, "tables")) {
       return (u_char *) dbrelay_admin_tables(request);
    } else if (!strcmp(request->cmd, "columns")) {
+      if (!check_params(request->params, 1)) 
+         return (u_char *) dbrelay_json_error("No parameter specified");
       return (u_char *) dbrelay_admin_columns(request);
    } else if (!strcmp(request->cmd, "pkey")) {
+      if (!check_params(request->params, 1)) 
+         return (u_char *) dbrelay_json_error("No parameter specified");
       return (u_char *) dbrelay_admin_pkey(request);
    } else {
       return (u_char *) dbrelay_json_error("Unknown admin command");
