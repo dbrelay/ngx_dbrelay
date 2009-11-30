@@ -42,6 +42,7 @@ static unsigned char dbrelay_is_unnamed_column(char *colname);
 dbrelay_connection_t *dbrelay_time_get_shmem(dbrelay_request_t *request);
 void dbrelay_time_release_shmem(dbrelay_request_t *request, dbrelay_connection_t *connections);
 static int calc_time(struct timeval *start, struct timeval *now);
+void dbrelay_cleanup_connector(dbrelay_connection_t *conn);
 
 dbrelay_connection_t *dbrelay_time_get_shmem(dbrelay_request_t *request)
 {
@@ -433,10 +434,10 @@ static dbrelay_connection_t *dbrelay_wait_for_connection(dbrelay_request_t *requ
       if (IS_SET(request->connection_name)) {
          dbrelay_log_info(request, "connecting to connection helper");
          dbrelay_log_info(request, "socket address %s", conn->sock_path);
-         *s = dbrelay_socket_connect(conn->sock_path);
+         *s = dbrelay_socket_connect(conn->sock_path, 10);
          // if connect fails, remove connector from list
          if (*s==-1) {
-            unlink(conn->sock_path);
+            dbrelay_cleanup_connector(conn);
             free(conn);
             connections = dbrelay_time_get_shmem(request);
             connections[slot].pid=0;
@@ -446,6 +447,14 @@ static dbrelay_connection_t *dbrelay_wait_for_connection(dbrelay_request_t *requ
   } while (*s==-1);
 
   return conn;
+}
+void dbrelay_cleanup_connector(dbrelay_connection_t *conn)
+{
+   if (conn->helper_pid) {
+      if (!kill(conn->helper_pid, 0)) 
+         kill(conn->helper_pid, SIGTERM);
+   }
+   unlink(conn->sock_path);
 }
 void dbrelay_db_restart_json(dbrelay_request_t *request, json_t **json)
 {

@@ -77,7 +77,7 @@ dbrelay_socket_accept(unsigned int s)
 }
 
 int
-dbrelay_socket_connect(char *sock_path)
+dbrelay_socket_connect(char *sock_path, int timeout)
 {
    int s, len, ret;
    struct sockaddr_un remote;
@@ -105,7 +105,7 @@ dbrelay_socket_connect(char *sock_path)
 
    if ((ret = connect(s, (struct sockaddr *)&remote, len)) == -1) {
       if (ret == EINPROGRESS) {
-         ret = dbrelay_socket_wait(s, SEL_WRITE | SEL_ERROR, 60);
+         ret = dbrelay_socket_wait(s, SEL_WRITE | SEL_ERROR, timeout);
          if (ret==-1) {
             if (DEBUG) fprintf(stderr, "connect timeout\n"); 
             return -1;
