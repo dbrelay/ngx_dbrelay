@@ -21,7 +21,7 @@ dbrelay_conn_kill(int s)
    int in_ptr = -1;
 
    dbrelay_socket_send_string(s, ":DIE\n");
-   dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf);
+   dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf, 0);
    close(s);
 }
 void
@@ -32,7 +32,7 @@ dbrelay_conn_close(int s)
    int in_ptr = -1;
 
    dbrelay_socket_send_string(s, ":QUIT\n");
-   dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf);
+   dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf, 0);
    close(s);
 }
 char *
@@ -81,14 +81,14 @@ dbrelay_conn_send_request(int s, dbrelay_request_t *request, int *error)
       return dbrelay_conn_socket_error(request);
    *error = 0;
 
-   dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf);
+   dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf, 0);
 
    if (dbrelay_socket_send_string(s, ":RUN\n")<0)
       return dbrelay_conn_socket_error(request);
 
    sb_rslt = sb_new(NULL);
    dbrelay_log_debug(request, "receiving results");
-   while ((t=dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf))>0) {
+   while ((t=dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf, 0))>0) {
       //dbrelay_log_debug(request, "result line = %s", out_buf);
       if (!strcmp(out_buf, ":BYE") ||
 	 !strcmp(out_buf, ":OK") ||
@@ -152,7 +152,7 @@ dbrelay_conn_set_option(int s, char *option, char *value)
    /* don't wait for return on failed send */
    if (dbrelay_socket_send_string(s, set_string)==-1) 
       return -1; 
-   dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf);
+   dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf, 0);
    //fprintf(stderr, "set %s returned %s\n", option, out_buf);
    return 0; 
 }

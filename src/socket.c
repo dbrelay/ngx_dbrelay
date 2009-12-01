@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
 
 #define MAIN 0
 
@@ -20,14 +21,26 @@
 
 #define DEBUG 0
 
+#define SEL_WRITE 0x01
+#define SEL_READ  0x02
+#define SEL_ERROR 0x04
+
+int dbrelay_socket_wait(int s, int mode, int timeout);
+
 unsigned int
 dbrelay_socket_create(char *sock_path)
 {
    unsigned int s;
    int ret, len;
    struct sockaddr_un local;
+   unsigned int nonblocking = 1;
 
    s = socket(AF_UNIX, SOCK_STREAM, 0);
+
+   if (ioctl(s, FIONBIO, &nonblocking) < 0) {
+      if (DEBUG) fprintf(stderr, "Could not use non-blocking socket\n"); 
+      return -1;
+   }
 
    local.sun_family = AF_UNIX;  
    strcpy(local.sun_path, sock_path);
@@ -45,11 +58,15 @@ dbrelay_socket_accept(unsigned int s)
 {
    unsigned int s2;
    struct sockaddr_un remote;
+   int ret;
 #if HAVE_SO_NOSIGPIPE
    int on = 1;
 #endif
 
    socklen_t len = sizeof(struct sockaddr_un);
+
+   ret = dbrelay_socket_wait(s, SEL_READ, 30);
+   if (ret<=0) return ret;
 
    s2 = accept(s, (struct sockaddr *) &remote, &len);
 
@@ -60,16 +77,24 @@ dbrelay_socket_accept(unsigned int s)
 }
 
 int
-dbrelay_socket_connect(char *sock_path)
+dbrelay_socket_connect(char *sock_path, int timeout)
 {
-   int s, len;
+   int s, len, ret;
    struct sockaddr_un remote;
+   unsigned int nonblocking = 1;
+
 #if HAVE_SO_NOSIGPIPE
    int on = 1;
 #endif
 
+
    if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
        return -1;
+   }
+
+   if (ioctl(s, FIONBIO, &nonblocking) < 0) {
+      if (DEBUG) fprintf(stderr, "Could not use non-blocking socket\n"); 
+      return -1;
    }
 
    if (DEBUG) printf("Trying to connect (%s)...\n", sock_path);
@@ -78,9 +103,17 @@ dbrelay_socket_connect(char *sock_path)
    strcpy(remote.sun_path, sock_path);
    len = strlen(remote.sun_path) + sizeof(remote.sun_family) + 1;
 
-   if (connect(s, (struct sockaddr *)&remote, len) == -1) {
-      if (DEBUG) perror("connect"); 
-      return -1;
+   if ((ret = connect(s, (struct sockaddr *)&remote, len)) == -1) {
+      if (ret == EINPROGRESS) {
+         ret = dbrelay_socket_wait(s, SEL_WRITE | SEL_ERROR, timeout);
+         if (ret==-1) {
+            if (DEBUG) fprintf(stderr, "connect timeout\n"); 
+            return -1;
+         }
+      } else {
+         if (DEBUG) perror("connect"); 
+         return -1;
+      }
    }
    if (DEBUG) printf("Connected.\n");
 
@@ -98,6 +131,10 @@ dbrelay_socket_send_string(int s, char *str)
    int pos = 0;
 
    while (bytes_to_send > 0) {
+        if (dbrelay_socket_wait(s, SEL_WRITE, 0)==-1) {
+           if (DEBUG) fprintf(stderr, "error waiting to send\n");
+           return -1;
+        }
    	bytes_sent = send(s, &str[pos], bytes_to_send, NET_FLAGS);
 	if (bytes_sent == -1) {
            if (DEBUG) perror("send");
@@ -109,10 +146,10 @@ dbrelay_socket_send_string(int s, char *str)
    return 0;
 }
 int
-dbrelay_socket_recv_string(int s, char *in_buf, int *in_ptr, char *out_buf)
+dbrelay_socket_recv_string(int s, char *in_buf, int *in_ptr, char *out_buf, int timeout)
 {
    int t, len = 0;
-   int i;
+   int i, ret;
    int have_space, have_available;
    int done = 0;
    int out_ptr = 0;
@@ -121,13 +158,21 @@ dbrelay_socket_recv_string(int s, char *in_buf, int *in_ptr, char *out_buf)
       if (DEBUG) printf("ptr %d\n", *in_ptr);
       if (*in_ptr >= DBRELAY_SOCKET_BUFSIZE - 1) *in_ptr=-1;
       if (*in_ptr==-1) {
+         if ((ret=dbrelay_socket_wait(s, SEL_READ, timeout))==-1) {
+            if (DEBUG) fprintf(stderr, "wait for socket read failed\n"); 
+            return ret;
+         }
          if ((t=recv(s, in_buf, DBRELAY_SOCKET_BUFSIZE - 1, NET_FLAGS))<=0) {
-	   if (len < 0) {
-             if (errno==EINTR) continue;
+	   if (t < 0) {
+             if (errno==EINTR) {
+                 printf("got EINTR\n"); 
+                 continue;
+             }
              if (DEBUG) perror("recv"); 
            } else {
              if (DEBUG) printf("Server closed connection\n");
            }
+           if (DEBUG) printf("Returning %d\n", t);
            return t;
          }
          if (DEBUG) printf("got %d bytes\n", t);
@@ -185,6 +230,9 @@ dbrelay_socket_recv_string(int s, char *in_buf, int *in_ptr, char *out_buf)
    do {
       if (DEBUG) printf("ptr %d\n", *in_ptr);
       if (*in_ptr==-1) {
+         if (dbrelay_socket_wait(s, SEL_READ, 0)==-1) {
+            return -1;
+         }
          if ((t=recv(s, in_buf, DBRELAY_SOCKET_BUFSIZE - 1, NET_FLAGS))<=0) {
 	   if (t < 0) {
              if (DEBUG) perror("recv"); 
@@ -249,6 +297,9 @@ int ret;
 
     if (strcmp(argv[1], "client")) {
        s = dbrelay_socket_create("/tmp/socket1");
+       if (dbrelay_socket_wait(s, SEL_READ, 0)==-1) {
+          return -1;
+       }
        s2 = dbrelay_socket_accept(s);
        printf("socket: %d\n", s2);
        while (ret = dbrelay_socket_recv_string(s2, in_buf, &in_ptr, out_buf)) {
@@ -265,3 +316,46 @@ int ret;
 }
 #endif
 
+int
+dbrelay_socket_wait(int s, int mode, int timeout)
+{
+   struct timeval tv;
+   fd_set fds[3];
+   fd_set *readfds = NULL, *writefds = NULL, *errorfds = NULL;
+   int ret;
+
+   if (mode & SEL_READ) {
+      readfds = &fds[0];
+      FD_ZERO(readfds);
+      FD_SET(s, readfds);
+   }
+   if (mode & SEL_WRITE) {
+      writefds = &fds[1];
+      FD_ZERO(writefds);
+      FD_SET(s, writefds);
+   }
+   if (mode & SEL_ERROR) {
+      errorfds = &fds[2];
+      FD_ZERO(errorfds);
+      FD_SET(s, errorfds);
+   }
+
+   tv.tv_sec = timeout; // wait timeout seconds.
+   tv.tv_usec = 0;
+
+   ret = select(s + 1, readfds, writefds, errorfds, (timeout) ? &tv : NULL);
+
+/*
+   if (mode & SEL_READ) do {
+      ret = select(s + 1, readfds, writefds, errorfds, (timeout) ? &tv : NULL);
+      if (ret==-1) return ret;
+   } while (!FD_ISSET(s, readfds));
+
+   if (mode & SEL_WRITE) do {
+      ret = select(s + 1, readfds, writefds, errorfds, (timeout) ? &tv : NULL);
+      if (ret==-1) return ret;
+   } while (!FD_ISSET(s, writefds));
+*/
+
+   return ret;
+}

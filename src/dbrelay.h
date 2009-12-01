@@ -195,8 +195,8 @@ void dbrelay_conn_close(int s);
 u_char *dbrelay_db_cmd(dbrelay_request_t *request);
 
 /* socket.c */
-int dbrelay_socket_connect(char *sock_path);
-int dbrelay_socket_recv_string(int s, char *in_buf, int *in_ptr, char *out_buf);
+int dbrelay_socket_connect(char *sock_path, int timeout);
+int dbrelay_socket_recv_string(int s, char *in_buf, int *in_ptr, char *out_buf, int timeout);
 int dbrelay_socket_send_string(int s, char *str);
 
 #endif /* _DBRELAY_H_INCLUDED_ */
