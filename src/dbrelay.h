@@ -9,6 +9,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <sys/ipc.h>
+#include <sys/signal.h>
 #include "../include/config.h"
 
 #ifndef CMDLINE
