@@ -388,9 +388,7 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     u_char *json_output;
     dbrelay_request_t *request;
     size_t len;
-    u_char *header_value;
-    //struct sockaddr_in *sin;
-    //struct hostent *hent;
+    int cplength;
 
     log = r->connection->log;
 
@@ -401,6 +399,8 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     ngx_log_error(NGX_LOG_INFO, log, 0, "parsing query_string");
     /* is GET method? */
     if (r->method==NGX_HTTP_GET || r->method==NGX_HTTP_HEAD) { //r->args.len>0) {
+        ngx_log_error(NGX_LOG_DEBUG, log, 0, "args length %l", r->args.len);
+        ngx_log_error(NGX_LOG_DEBUG, log, 0, "last byte %d", (int) r->args.data[r->args.len-1]);
 	parse_get_query_string(r->args, request);
     } else
     /* is POST method? */
@@ -418,7 +418,9 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
 	    
     log->action = "sending response to client";
 
-    strncpy(request->remote_addr, (char *) r->connection->addr_text.data, DBRELAY_OBJ_SZ);
+    cplength = r->connection->addr_text.len > DBRELAY_OBJ_SZ - 1 ? DBRELAY_OBJ_SZ - 1 : r->connection->addr_text.len;
+    strncpy(request->remote_addr, (char *) r->connection->addr_text.data, cplength);
+    request->remote_addr[cplength] = '\0';
     //sin = (struct sockaddr_in *) r->connection->sockaddr;
     //hent = gethostbyaddr(&(sin->sin_addr.s_addr), r->connection->socklen, AF_INET);
     //if (!hent) ngx_log_error(NGX_LOG_DEBUG, log, 0, "gethostbyaddr returned error (%d)", errno);
@@ -528,10 +530,13 @@ write_value(dbrelay_request_t *request, char *key, char *value)
    for (i=0;i<strlen(value);i++) {
       if (value[i]=='+') value[i]=' ';
    }
+   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "unescaped value pass 1 %s", value);
 
    dst = (u_char *) value; src = (u_char *) value;
    ngx_unescape_uri(&dst, &src, strlen(value), 0);
+   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "prev last byte %d", (int) *dst);
    *dst = '\0';
+   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "unescaped value pass 2 %s", value);
 
    if (!strcmp(key, "cmd")) {
       copy_value(request->cmd, value, DBRELAY_OBJ_SZ);
@@ -664,6 +669,7 @@ void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request)
       if (*s=='&') {
          *k='\0';
 	 *v='\0';
+         ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "escaped value %s", value);
 	 write_value(request, key, value);
          target=0;
          k=key;
@@ -679,5 +685,7 @@ void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request)
    *k='\0';
    while (v>=value && (*v=='\n' || *v=='\r')) *v--='\0';
    *v='\0';
+   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "escaped value %s", value);
    write_value(request, key, value);
 }
+

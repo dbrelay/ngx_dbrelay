@@ -56,7 +56,6 @@ int set_timer(int secs)
   it.it_value.tv_sec = secs; 
   it.it_value.tv_usec = 0;
   setitimer(ITIMER_REAL, &it,0);
-  signal(SIGALRM,timeout); 
 }
 
 int
@@ -94,6 +93,9 @@ main(int argc, char **argv)
 
    log_open();
    log_msg("Using socket path %s\n", sock_path);
+
+   // register SIGALRM handler
+   signal(SIGALRM,timeout); 
 
    for (;;) {
       done = 0;
@@ -194,7 +196,7 @@ process_line(char *line)
       log_msg("line: %s\n", line);
       if (!line || strlen(line)<8 || strncmp(line, ":SQL END", 8)) {
       	sb_append(sb_sql, line);
-      	sb_append(sb_sql, "\n");
+      	//sb_append(sb_sql, "\n");
         return CONT;
       }
    } 
