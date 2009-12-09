@@ -20,6 +20,7 @@
 #endif
 
 #define DEBUG 0
+#define NOBLOCK 1
 
 #define SEL_WRITE 0x01
 #define SEL_READ  0x02
@@ -33,14 +34,18 @@ dbrelay_socket_create(char *sock_path)
    unsigned int s;
    int ret, len;
    struct sockaddr_un local;
+#if NOBLOCK
    unsigned int nonblocking = 1;
+#endif
 
    s = socket(AF_UNIX, SOCK_STREAM, 0);
 
+#if NOBLOCK
    if (ioctl(s, FIONBIO, &nonblocking) < 0) {
       if (DEBUG) fprintf(stderr, "Could not use non-blocking socket\n"); 
       return -1;
    }
+#endif
 
    local.sun_family = AF_UNIX;  
    strcpy(local.sun_path, sock_path);
@@ -319,6 +324,9 @@ int ret;
 int
 dbrelay_socket_wait(int s, int mode, int timeout)
 {
+#if !NOBLOCK
+   return 0;
+#else
    struct timeval tv;
    fd_set fds[3];
    fd_set *readfds = NULL, *writefds = NULL, *errorfds = NULL;
@@ -358,4 +366,5 @@ dbrelay_socket_wait(int s, int mode, int timeout)
 */
 
    return ret;
+#endif
 }
