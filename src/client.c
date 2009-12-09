@@ -89,6 +89,7 @@ dbrelay_conn_send_request(int s, dbrelay_request_t *request, int *error)
    sb_rslt = sb_new(NULL);
    dbrelay_log_debug(request, "receiving results");
    while ((t=dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf, 0))>0) {
+      if (out_buf[strlen(out_buf)-1]=='\n') out_buf[strlen(out_buf)-1]='\0';
       //dbrelay_log_debug(request, "result line = %s", out_buf);
       if (!strcmp(out_buf, ":BYE") ||
 	 !strcmp(out_buf, ":OK") ||
