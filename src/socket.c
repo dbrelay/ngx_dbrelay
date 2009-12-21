@@ -202,6 +202,8 @@ dbrelay_socket_recv_string(int s, char *in_buf, int *in_ptr, char *out_buf, int 
 
          *in_ptr += have_available;
          if (*in_ptr<len && in_buf[*in_ptr]=='\n') {
+            out_buf[out_ptr++]='\n';
+            out_buf[out_ptr++]='\0';
             (*in_ptr)++;
             if (*in_ptr >= len) *in_ptr=-1;
             return 1;
