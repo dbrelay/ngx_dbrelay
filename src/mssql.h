@@ -8,11 +8,13 @@
 #include "dbrelay.h"
 #include <sybdb.h>
 
+#define MSSQL_MAX_COLUMNS 256
+
 typedef struct mssql_db_s {
     LOGINREC *login;
     DBPROCESS *dbproc;
-    char colval[256][256];
-    int colnull[256];
+    char *colval[MSSQL_MAX_COLUMNS];
+    int colnull[MSSQL_MAX_COLUMNS];
 } mssql_db_t;
 
 void dbrelay_mssql_init();
