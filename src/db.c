@@ -110,7 +110,7 @@ static void dbrelay_db_populate_connection(dbrelay_request_t *request, dbrelay_c
          strcpy(conn->sock_path, request->sock_path);
       } else {
          tmpnam(conn->sock_path);
-         conn->helper_pid = dbrelay_conn_launch_connector(conn->sock_path);
+         dbrelay_conn_launch_connector(conn->sock_path, request);
       }
       dbrelay_log_info(request, "socket name %s", conn->sock_path);
       conn->tm_create = time(NULL);
@@ -480,6 +480,7 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
    int slot = -1;
    char *newsql;
    int have_error = 0;
+   pid_t helper_pid = 0;
 
    error_string[0]='\0';
 
@@ -531,6 +532,15 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
 
    if (IS_SET(request->connection_name)) 
    {
+      if ((helper_pid = dbrelay_conn_initialize(s, request))==-1) {
+         dbrelay_db_restart_json(request, &json);
+         strcpy(error_string, "Couldn't initialize connector");
+      } else if (helper_pid) {
+         // write the connectors pid into shared memory
+         connections = dbrelay_time_get_shmem(request);
+         connections[slot].helper_pid = helper_pid;
+         dbrelay_time_release_shmem(request, connections);
+      } // else we didn't get a pid but didn't fail, shouldn't happen
       dbrelay_log_info(request, "sending request");
       ret = (u_char *) dbrelay_conn_send_request(s, request, &have_error);
       dbrelay_log_debug(request, "back");
