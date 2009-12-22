@@ -96,6 +96,7 @@ ngx_http_dbrelay_exit_master(ngx_cycle_t *cycle)
    dbrelay_connection_t *connections;
    int i, s;
    pid_t pid = 0;
+   int error;
 
    connections = dbrelay_get_shmem();
 
@@ -103,8 +104,8 @@ ngx_http_dbrelay_exit_master(ngx_cycle_t *cycle)
 
    for (i=0; i<DBRELAY_MAX_CONN; i++) {
      if (connections[i].sock_path && strlen(connections[i].sock_path)) {
-         s = dbrelay_socket_connect(connections[i].sock_path, 2);
-         dbrelay_conn_kill(s);
+         s = dbrelay_socket_connect(connections[i].sock_path, 2, &error);
+         if (s!=-1) dbrelay_conn_kill(s);
      }
      if (connections[i].helper_pid) {
         pid = connections[i].helper_pid;

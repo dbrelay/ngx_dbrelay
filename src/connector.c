@@ -222,6 +222,7 @@ process_line(char *line)
         return CONT;
       }
    } 
+   if (line[strlen(line)-1]=='\n') line[strlen(line)-1]='\0';
 
    if (len<1 || line[0]!=':') {
       log_msg("bad protocol command returning ERR\n");
