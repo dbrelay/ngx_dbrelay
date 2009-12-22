@@ -9,6 +9,9 @@
 #include <unistd.h>
 #include "dbrelay.h"
 #include "../include/dbrelay_config.h"
+#ifndef CMDLINE
+#include <ngx_http.h>
+#endif
 
 #define DEBUG 0
 
@@ -186,6 +189,9 @@ pid_t dbrelay_conn_launch_connector(char *sock_path, dbrelay_request_t *request)
    //char line[256]; 
    FILE *connector;
    struct stat statbuf;
+#ifndef CMDLINE
+     ngx_http_request_t *r = request->nginx_request;
+#endif
 
    //sprintf(connector_path, "%s/sbin/connector %s", DBRELAY_PREFIX, sock_path);
    sprintf(connector_path, "%s/sbin/connector", DBRELAY_PREFIX);
@@ -193,7 +199,7 @@ pid_t dbrelay_conn_launch_connector(char *sock_path, dbrelay_request_t *request)
 
    if ((child = fork())==0) {
 #ifndef CMDLINE
-     ngx_close_connection(request->nginx_request->connection);
+     ngx_close_connection(r->connection);
 #endif
      execv(connector_path, argv);
      //printf("cmd = %s\n", connector_path);

@@ -15,7 +15,6 @@
 #ifndef CMDLINE
 #include <ngx_core.h>
 #include <ngx_config.h>
-#include <ngx_http.h>
 #endif
 
 #include "stringbuf.h"
@@ -65,7 +64,6 @@
 #ifdef CMDLINE
    typedef struct ngx_log_s {} ngx_log_t;
    typedef unsigned char u_char;
-   typedef struct ngx_http_request_s {} ngx_http_request_t;
 #endif
 
 #if HAVE_MSG_NOSIGNAL
@@ -98,7 +96,7 @@ typedef struct {
    unsigned long flags;
    char js_callback[DBRELAY_NAME_SZ];
    char js_error[DBRELAY_NAME_SZ];
-   ngx_http_request_t *nginx_request;
+   void *nginx_request;
 } dbrelay_request_t;
 
 typedef struct {

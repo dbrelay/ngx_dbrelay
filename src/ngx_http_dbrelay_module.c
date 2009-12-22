@@ -332,7 +332,7 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     request = dbrelay_alloc_request();
     request->log = log;
     request->log_level = 0;
-    request->nginx_request = r;
+    request->nginx_request = (void *) r;
 
     ngx_log_error(NGX_LOG_INFO, log, 0, "parsing query_string");
     /* is GET method? */
