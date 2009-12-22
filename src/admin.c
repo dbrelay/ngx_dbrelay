@@ -101,8 +101,9 @@ int dbrelay_admin_kill(dbrelay_request_t *request, char *sock_path)
    dbrelay_connection_t *connections;
    dbrelay_connection_t *conn;
    int i;
+   int error;
 
-   int s = dbrelay_socket_connect(sock_path);
+   int s = dbrelay_socket_connect(sock_path, 10, &error);
    if (s==-1) return FAIL;
 
    dbrelay_conn_kill(s);

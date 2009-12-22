@@ -38,7 +38,10 @@ char logfilename[256];
 dbrelay_request_t request;
 
 static FILE *logfile;
+struct itimerval it;
+struct timeval last_accessed;
 
+  
 /* signal callback for timeout */
 void timeout(int i)
 {
@@ -49,14 +52,12 @@ void timeout(int i)
 /* setup the timer for the specified timeout value */
 int set_timer(int secs)
 {
-  struct itimerval it;
-  
+  gettimeofday(&last_accessed, NULL);
   it.it_interval.tv_sec = 0;
   it.it_interval.tv_usec = 0;
   it.it_value.tv_sec = secs; 
   it.it_value.tv_usec = 0;
   setitimer(ITIMER_REAL, &it,0);
-  signal(SIGALRM,timeout); 
 }
 
 int
@@ -73,6 +74,8 @@ main(int argc, char **argv)
    dbrelay_connection_t conn;
    unsigned char connected = 0;
    pid_t pid;
+   int tries = 0;
+   struct timeval now;
 
    if (argc>1) {
       sock_path = argv[1];
@@ -95,15 +98,34 @@ main(int argc, char **argv)
    log_open();
    log_msg("Using socket path %s\n", sock_path);
 
+   // register SIGALRM handler
+   signal(SIGALRM,timeout); 
+
    for (;;) {
       done = 0;
       // wait for connection
-      s2 = dbrelay_socket_accept(s);
+      tries = 0;
+      do {
+         log_msg("waiting for new connection\n");
+         s2 = dbrelay_socket_accept(s);
+         if (s2==-1) {
+            log_msg("socket accept had error\n");
+            tries++;
+            if (tries>3) { exit(0); }
+         }
+         gettimeofday(&now, NULL);
+         if (request.connection_timeout && now.tv_sec - last_accessed.tv_sec > request.connection_timeout) {
+            log_msg("manual timeout occurred\n");
+            exit(0);
+         }
 
+      } while (s2==0);
+     
+      log_msg("connected\n");
       in_ptr = -1;
       // get a newline terminated string from the client
-      while (!done && (t=dbrelay_socket_recv_string(s2, in_buf, &in_ptr, line))>0) {
-	   log_msg("line = %s\n", line);
+      while (!done && (t=dbrelay_socket_recv_string(s2, in_buf, &in_ptr, line, 30))>0) {
+           log_msg("line = %s\n", line);
            ret = process_line(line);
            
            if (ret == QUIT) {
@@ -133,12 +155,15 @@ main(int argc, char **argv)
               }
 #endif
               log_msg("%s\n", request.sql);
+              // don't timeout during query run
+	      if (request.connection_timeout) set_timer(DBRELAY_HARD_TIMEOUT);
               results = (char *) dbrelay_exec_query(&conn, (char *) &request.sql_database, request.sql, request.flags);
               log_msg("addr = %lu\n", results);
               if (results == NULL) {
 	         log_msg("results are null\n"); 
+                 log_msg("error is %s\n", api->error(conn.db));
                  dbrelay_socket_send_string(s2, ":ERROR BEGIN\n");
-                 dbrelay_socket_send_string(s2, request.error_message);
+                 dbrelay_socket_send_string(s2, api->error(conn.db));
                  dbrelay_socket_send_string(s2, "\n");
                  dbrelay_socket_send_string(s2, ":ERROR END\n");
               } else {
@@ -156,7 +181,7 @@ main(int argc, char **argv)
               api->close(conn.db);
 #endif
               free(results);
-		      if (request.connection_timeout) set_timer(request.connection_timeout);
+	      if (request.connection_timeout) set_timer(request.connection_timeout);
            } else if (ret == DIE) {
               log_msg("exiting.\n"); 
               log_close();
@@ -193,10 +218,11 @@ process_line(char *line)
       log_msg("line: %s\n", line);
       if (!line || strlen(line)<8 || strncmp(line, ":SQL END", 8)) {
       	sb_append(sb_sql, line);
-      	sb_append(sb_sql, "\n");
+      	//sb_append(sb_sql, "\n");
         return CONT;
       }
    } 
+   if (line[strlen(line)-1]=='\n') line[strlen(line)-1]='\0';
 
    if (len<1 || line[0]!=':') {
       log_msg("bad protocol command returning ERR\n");

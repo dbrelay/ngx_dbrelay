@@ -86,6 +86,7 @@ ngx_http_dbrelay_exit_master(ngx_cycle_t *cycle)
    dbrelay_connection_t *connections;
    int i, s;
    pid_t pid = 0;
+   int error;
 
    connections = dbrelay_get_shmem();
 
@@ -93,8 +94,8 @@ ngx_http_dbrelay_exit_master(ngx_cycle_t *cycle)
 
    for (i=0; i<DBRELAY_MAX_CONN; i++) {
      if (connections[i].sock_path && strlen(connections[i].sock_path)) {
-         s = dbrelay_socket_connect(connections[i].sock_path);
-         dbrelay_conn_kill(s);
+         s = dbrelay_socket_connect(connections[i].sock_path, 2, &error);
+         if (s!=-1) dbrelay_conn_kill(s);
      }
      if (connections[i].helper_pid) {
         pid = connections[i].helper_pid;
@@ -117,14 +118,15 @@ ngx_http_dbrelay_exit_master(ngx_cycle_t *cycle)
 static void
 ngx_http_dbrelay_request_body_handler(ngx_http_request_t *r)
 {
-    size_t                    root;
-    ngx_str_t                 path;
+    //size_t                    root;
+    //ngx_str_t                 path;
     ngx_log_t                 *log;
     ngx_int_t                 rc;
 
     log = r->connection->log;
+    ngx_log_error(NGX_LOG_INFO, log, 0, "entering dbrelay_request_body_handler");
 
-    ngx_http_map_uri_to_path(r, &path, &root, 0);
+    //ngx_http_map_uri_to_path(r, &path, &root, 0);
 #if 0
     /* is GET method? */
     if (r->args.len>0) {
@@ -136,9 +138,10 @@ ngx_http_dbrelay_request_body_handler(ngx_http_request_t *r)
             "buf: \"%s\"", r->request_body->buf->pos);
     } 
 #endif
-    ngx_log_error(NGX_LOG_DEBUG, log, 0,
-        "buf: \"%s\"", r->request_body->bufs->buf->pos);
+    //ngx_log_error(NGX_LOG_DEBUG, log, 0,
+        //"buf: \"%s\"", r->request_body->bufs->buf->pos);
     rc = ngx_http_dbrelay_send_response(r);
+    ngx_log_error(NGX_LOG_INFO, log, 0, "exiting dbrelay_request_body_handler");
 }
 
 /*
@@ -284,12 +287,14 @@ ngx_http_dbrelay_handler(ngx_http_request_t *r)
     clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
 
     ngx_log_error(NGX_LOG_DEBUG, log, 0, "here2");
+#if 0
     if (r->method == NGX_HTTP_GET || r->method == NGX_HTTP_HEAD) {
         rc = ngx_http_discard_request_body(r);
         if (rc != NGX_OK) return rc;
         return ngx_http_dbrelay_send_response(r);
     }
     /* else POST method */
+#endif
 
     rc = ngx_http_read_client_request_body(r, ngx_http_dbrelay_request_body_handler);
 
@@ -298,6 +303,7 @@ ngx_http_dbrelay_handler(ngx_http_request_t *r)
         return rc;
     }
 
+    ngx_log_error(NGX_LOG_INFO, log, 0, "exiting dbrelay_handler");
     return NGX_DONE;
     //return ngx_http_dbrelay_send_response(r);
 }
@@ -312,6 +318,7 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     u_char *json_output;
     dbrelay_request_t *request;
     size_t len;
+    int cplength;
 
     log = r->connection->log;
 
@@ -322,6 +329,8 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     ngx_log_error(NGX_LOG_INFO, log, 0, "parsing query_string");
     /* is GET method? */
     if (r->method==NGX_HTTP_GET || r->method==NGX_HTTP_HEAD) { //r->args.len>0) {
+        ngx_log_error(NGX_LOG_DEBUG, log, 0, "args length %l", r->args.len);
+        ngx_log_error(NGX_LOG_DEBUG, log, 0, "last byte %d", (int) r->args.data[r->args.len-1]);
 	parse_get_query_string(r->args, request);
     } else
     /* is POST method? */
@@ -339,7 +348,9 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     
     log->action = "sending response to client";
 
-    strncpy(request->remote_addr, (char *) r->connection->addr_text.data, DBRELAY_OBJ_SZ);
+    cplength = r->connection->addr_text.len > DBRELAY_OBJ_SZ - 1 ? DBRELAY_OBJ_SZ - 1 : r->connection->addr_text.len;
+    strncpy(request->remote_addr, (char *) r->connection->addr_text.data, cplength);
+    request->remote_addr[cplength] = '\0';
 
     if (strlen(request->cmd)) json_output = (u_char *) dbrelay_db_cmd(request);
     else if (request->status) json_output = (u_char *) dbrelay_db_status(request);
@@ -433,10 +444,13 @@ write_value(dbrelay_request_t *request, char *key, char *value)
    for (i=0;i<strlen(value);i++) {
       if (value[i]=='+') value[i]=' ';
    }
+   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "unescaped value pass 1 %s", value);
 
    dst = (u_char *) value; src = (u_char *) value;
    ngx_unescape_uri(&dst, &src, strlen(value), 0);
+   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "prev last byte %d", (int) *dst);
    *dst = '\0';
+   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "unescaped value pass 2 %s", value);
 
    if (!strcmp(key, "cmd")) {
       copy_value(request->cmd, value, DBRELAY_OBJ_SZ);
@@ -502,6 +516,7 @@ write_flag_values(dbrelay_request_t *request, char *value)
       else if (!strcmp(tok, "pp")) request->flags|=DBRELAY_FLAG_PP; 
       else if (!strcmp(tok, "xact")) request->flags|=DBRELAY_FLAG_XACT; 
       else if (!strcmp(tok, "embedcsv")) request->flags|=DBRELAY_FLAG_EMBEDCSV; 
+      else if (!strcmp(tok, "nomagic")) request->flags|=DBRELAY_FLAG_NOMAGIC; 
    }
    free(flags);
 }
@@ -568,6 +583,7 @@ void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request)
       if (*s=='&') {
          *k='\0';
 	 *v='\0';
+         ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "escaped value %s", value);
 	 write_value(request, key, value);
          target=0;
          k=key;
@@ -583,5 +599,7 @@ void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request)
    *k='\0';
    while (v>=value && (*v=='\n' || *v=='\r')) *v--='\0';
    *v='\0';
+   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "escaped value %s", value);
    write_value(request, key, value);
 }
+
