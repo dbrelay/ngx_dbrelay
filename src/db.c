@@ -857,18 +857,27 @@ void dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolna
 }
 static void dbrelay_write_json_column_csv(json_t *json, void *db, int colnum)
 {
-   char tmp[256];
    unsigned char escape = 0;
+   int colsize;
+   char *tmp;
+
+   colsize = api->collen(db, colnum);
+   tmp = (char *) malloc(colsize > 256 ? colsize : 256);
 
    if (api->colvalue(db, colnum, tmp)==NULL) return;
    if (strchr(tmp, ',')) escape = 1;
    if (escape) json_add_json(json, "\\\"");
    json_add_json(json, tmp);
    if (escape) json_add_json(json, "\\\"");
+   free(tmp);
 }
 static void dbrelay_write_json_column_std(json_t *json, void *db, int colnum, char *colname)
 {
-   char tmp[256];
+   int colsize;
+   char *tmp;
+
+   colsize = api->collen(db, colnum);
+   tmp = (char *) malloc(colsize > 256 ? colsize : 256);
 
    if (api->colvalue(db, colnum, tmp)==NULL) {
       json_add_null(json, colname);
@@ -877,6 +886,7 @@ static void dbrelay_write_json_column_std(json_t *json, void *db, int colnum, ch
    } else {
       json_add_number(json, colname, tmp);
    }
+   free(tmp);
 }
 static int calc_time(struct timeval *start, struct timeval *now)
 {
