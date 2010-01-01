@@ -96,6 +96,7 @@ typedef struct {
    unsigned long flags;
    char js_callback[DBRELAY_NAME_SZ];
    char js_error[DBRELAY_NAME_SZ];
+   void *nginx_request;
 } dbrelay_request_t;
 
 typedef struct {
@@ -185,9 +186,10 @@ void dbrelay_destroy_shmem();
 key_t dbrelay_get_ipc_key();
 
 /* connection.c */
+pid_t dbrelay_conn_initialize(int s, dbrelay_request_t *request);
 char *dbrelay_conn_send_request(int s, dbrelay_request_t *request, int *error);
 int dbrelay_conn_set_option(int s, char *option, char *value);
-pid_t dbrelay_conn_launch_connector(char *sock_path);
+pid_t dbrelay_conn_launch_connector(char *sock_path, dbrelay_request_t *request);
 u_char *dbrelay_exec_query(dbrelay_connection_t *conn, char *database, char *sql, unsigned long flags); 
 void dbrelay_conn_kill(int s);
 void dbrelay_conn_close(int s);

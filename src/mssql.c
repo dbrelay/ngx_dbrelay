@@ -196,6 +196,7 @@ static char *dbrelay_mssql_get_sqltype_string(char *dest, int coltype, int colle
 	}
 	return dest;
 }
+#if 0
 static unsigned char dbrelay_mssql_has_length(int coltype)
 {
 	if (coltype==SYBVARCHAR || 
@@ -206,6 +207,7 @@ static unsigned char dbrelay_mssql_has_length(int coltype)
 	else
 		return 0;
 }
+#endif
 static unsigned char dbrelay_mssql_has_prec(int coltype)
 {
 	if (coltype==SYBDECIMAL || coltype==SYBNUMERIC)

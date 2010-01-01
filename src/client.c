@@ -5,9 +5,13 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include "dbrelay.h"
 #include "../include/dbrelay_config.h"
+#ifndef CMDLINE
+#include <ngx_http.h>
+#endif
 
 #define DEBUG 0
 
@@ -35,6 +39,24 @@ dbrelay_conn_close(int s)
    dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf, 0);
    close(s);
 }
+pid_t
+dbrelay_conn_initialize(int s, dbrelay_request_t *request)
+{
+   char out_buf[DBRELAY_SOCKET_BUFSIZE];
+   char in_buf[DBRELAY_SOCKET_BUFSIZE];
+   int in_ptr = -1;
+   pid_t childpid;
+
+   if (dbrelay_socket_send_string(s, ":HELO\n")<0) return -1;
+   dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf, 0);
+   if (strncmp(":PID ", out_buf, 5)) return -1;
+   // trim trailing stuff
+   while (out_buf[strlen(out_buf)-1]=='\n') {
+      out_buf[strlen(out_buf)-1]='\0';
+   }
+   childpid = (pid_t) atoi(&out_buf[5]);
+   return childpid;
+}
 char *
 dbrelay_conn_send_request(int s, dbrelay_request_t *request, int *error)
 {
@@ -49,6 +71,7 @@ dbrelay_conn_send_request(int s, dbrelay_request_t *request, int *error)
    int t;
 
    *error = 2;
+
    dbrelay_log_debug(request, "setting options");
    if (dbrelay_conn_set_option(s, "SERVER", request->sql_server)<0) 
       return dbrelay_conn_socket_error(request);
@@ -158,33 +181,43 @@ dbrelay_conn_set_option(int s, char *option, char *value)
    return 0; 
 }
 
-pid_t dbrelay_conn_launch_connector(char *sock_path)
+pid_t dbrelay_conn_launch_connector(char *sock_path, dbrelay_request_t *request)
 {
-   //char *argv[] = {"dbrelay-connector", sock_path, NULL};
+   char *argv[] = {"dbrelay-connector", sock_path, NULL};
    pid_t child = 0;
    char connector_path[256]; 
-   char line[256]; 
+   //char line[256]; 
    FILE *connector;
+   struct stat statbuf;
+#ifndef CMDLINE
+     ngx_http_request_t *r = request->nginx_request;
+#endif
 
-   //if ((child = fork())==0) {
-     strcpy(connector_path, DBRELAY_PREFIX);
-     strcat(connector_path, "/sbin/connector");
-     strcat(connector_path, " ");
-     strcat(connector_path, sock_path);
-     //execv(connector_path, argv);
+   //sprintf(connector_path, "%s/sbin/connector %s", DBRELAY_PREFIX, sock_path);
+   sprintf(connector_path, "%s/sbin/connector", DBRELAY_PREFIX);
+   if (stat(connector_path, &statbuf)==-1) return (pid_t) -1;
+
+   if ((child = fork())==0) {
+#ifndef CMDLINE
+     ngx_close_connection(r->connection);
+#endif
+     execv(connector_path, argv);
      //printf("cmd = %s\n", connector_path);
      connector = popen(connector_path, "r");
      //printf("popen\n");
-   //} else {
+   } else {
      /* wait for connector to be ready, signaled by dead parent */
-     //waitpid(child, NULL, 0);
-   //}
+     /* waitpid fails because nginx reaps child in signal handler */
+     waitpid(child, NULL, 0);
+   }
+/*
      while (fgets(line, 256, connector)!=NULL) {
         if (strlen(line)>4 && !strncmp(line, ":PID", 4)) {
            child = atol(&line[5]);
 	}
      }
      pclose(connector);
+*/
 
      return child;
 }

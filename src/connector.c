@@ -24,6 +24,7 @@ extern dbrelay_dbapi_t *api;
 #define DIE 4
 #define RUN 5
 #define CONT 6
+#define HELO 7
 
 void log_open();
 void log_close();
@@ -66,6 +67,7 @@ main(int argc, char **argv)
    unsigned int s, s2;
    char line[DBRELAY_SOCKET_BUFSIZE];
    char in_buf[DBRELAY_SOCKET_BUFSIZE];
+   char buf[30];
    int in_ptr = -1;
    int len, pos = 0;
    int done = 0, ret, t = 0;
@@ -89,11 +91,11 @@ main(int argc, char **argv)
 
    // fork and die so parent knows we are ready
    if (!GDB && (pid=fork())) {
-      fprintf(stdout, ":PID %lu\n", pid);
+      //fprintf(stdout, ":PID %lu\n", pid);
       exit(0);
    }
    // allow control to return to the (grand)parent process
-   fclose(stdout);
+   //fclose(stdout);
 
    log_open();
    log_msg("Using socket path %s\n", sock_path);
@@ -128,7 +130,10 @@ main(int argc, char **argv)
            log_msg("line = %s\n", line);
            ret = process_line(line);
            
-           if (ret == QUIT) {
+           if (ret == HELO) {
+              sprintf(buf, ":PID %lu\n", getpid());
+              dbrelay_socket_send_string(s2, buf);
+           } else if (ret == QUIT) {
               log_msg("disconnect.\n"); 
               dbrelay_socket_send_string(s2, ":BYE\n");
               close(s2);
@@ -230,7 +235,8 @@ process_line(char *line)
       return ERR;
    }
 
-   if (check_command(line, "QUIT", NULL)) return QUIT;
+   if (check_command(line, "HELO", NULL)) return HELO;
+   else if (check_command(line, "QUIT", NULL)) return QUIT;
    else if (check_command(line, "RUN", NULL)) return RUN;
    else if (check_command(line, "DIE", NULL)) return DIE;
    else if (check_command(line, "SET NAME", &request.connection_name)) {
