@@ -82,7 +82,7 @@ dbrelay_socket_accept(unsigned int s)
 }
 
 int
-dbrelay_socket_connect(char *sock_path, int timeout)
+dbrelay_socket_connect(char *sock_path, int timeout, int *error)
 {
    int s, len, ret;
    struct sockaddr_un remote;
@@ -94,11 +94,13 @@ dbrelay_socket_connect(char *sock_path, int timeout)
 
 
    if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+       *error = 1;
        return -1;
    }
 
    if (ioctl(s, FIONBIO, &nonblocking) < 0) {
       if (DEBUG) fprintf(stderr, "Could not use non-blocking socket\n"); 
+      *error = 2;
       return -1;
    }
 
@@ -113,10 +115,12 @@ dbrelay_socket_connect(char *sock_path, int timeout)
          ret = dbrelay_socket_wait(s, SEL_WRITE | SEL_ERROR, timeout);
          if (ret==-1) {
             if (DEBUG) fprintf(stderr, "connect timeout\n"); 
+            *error = 3;
             return -1;
          }
       } else {
          if (DEBUG) perror("connect"); 
+         *error = 4;
          return -1;
       }
    }

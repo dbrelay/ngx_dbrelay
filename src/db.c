@@ -415,6 +415,7 @@ static dbrelay_connection_t *dbrelay_wait_for_connection(dbrelay_request_t *requ
    int slot = 0;
    dbrelay_connection_t *conn;
    dbrelay_connection_t *connections;
+   int error;
 
    do {
       dbrelay_log_debug(request, "calling get_connection");
@@ -434,10 +435,11 @@ static dbrelay_connection_t *dbrelay_wait_for_connection(dbrelay_request_t *requ
       if (IS_SET(request->connection_name)) {
          dbrelay_log_info(request, "connecting to connection helper");
          dbrelay_log_info(request, "socket address %s", conn->sock_path);
-         *s = dbrelay_socket_connect(conn->sock_path, 10);
+         *s = dbrelay_socket_connect(conn->sock_path, 10, &error);
          // if connect fails, remove connector from list
          if (*s==-1) {
-            dbrelay_log_warn(request, "can't connect to helper, cleaning up");
+            if (error==3) // timeout
+               dbrelay_log_warn(request, "can't connect to helper, cleaning up");
             dbrelay_cleanup_connector(conn);
             free(conn);
             connections = dbrelay_time_get_shmem(request);
