@@ -125,6 +125,32 @@ ngx_http_dbrelay_exit_master(ngx_cycle_t *cycle)
    dbrelay_destroy_shmem();
 }
 static unsigned int
+origin_matches(ngx_http_request_t *r, ngx_str_t origin)
+{
+    char *origin_string, *s;
+    int match = 0;
+    u_char *header_value;
+
+    header_value = get_header_value(r, "Origin");
+    if (!header_value) {
+       return 0;
+    }
+
+    origin_string = (char *) malloc(origin.len + 1);
+    memcpy(origin_string, origin.data, origin.len);
+    origin_string[origin.len]='\0';
+    s = strtok((char *)origin_string, ",");
+    if (s) do {
+          if (s[0]=='*') {
+            if (!strcmp(&s[1], (char *) &header_value[strlen((char *) header_value) - strlen(s) + 1])) match=1;
+          } else if (!strcmp(s, (char *) header_value)) match = 1;
+          s = strtok(NULL, ",");
+    } while (s);
+    free(header_value);
+    free(origin_string);
+    return match;
+}
+static unsigned int
 accepts_application_json(ngx_http_request_t *r)
 {
     u_char        *header_value;
@@ -294,7 +320,7 @@ ngx_http_dbrelay2_handler(ngx_http_request_t *r)
     ngx_http_upstream_t        *u;
     ngx_http_dbrelay_loc_conf_t  *vlcf;
 
-    vlcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
+    vlcf = ngx_http_get_module_loc_conf(r, ngx_http_dbrelay_module);
 
     /* set up our upstream struct */
     u = ngx_pcalloc(r->pool, sizeof(ngx_http_upstream_t));
@@ -340,6 +366,7 @@ ngx_http_dbrelay_handler(ngx_http_request_t *r)
     ngx_log_t                 *log;
     ngx_http_core_loc_conf_t  *clcf;
     ngx_http_dbrelay_loc_conf_t  *vlcf;
+    u_char *header_value;
 
     log = r->connection->log;
     ngx_log_error(NGX_LOG_INFO, log, 0, "dbrelay_handler called");
@@ -375,6 +402,18 @@ ngx_http_dbrelay_handler(ngx_http_request_t *r)
     /* else POST method */
 #endif
 
+    header_value = get_header_value(r, "Origin");
+    if (header_value) {
+       ngx_log_error(NGX_LOG_DEBUG, log, 0, "Origin: \"%s\"", header_value);
+       free(header_value);
+    }
+    if (vlcf->origin.len && !origin_matches(r, vlcf->origin)) {
+       ngx_log_error(NGX_LOG_DEBUG, log, 0, "Origins do not match");
+       return NGX_HTTP_FORBIDDEN;
+    } else if (vlcf->origin.len) {
+       ngx_log_error(NGX_LOG_DEBUG, log, 0, "Origins match");
+    }
+
     rc = ngx_http_read_client_request_body(r, ngx_http_dbrelay_request_body_handler);
 
     if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
@@ -399,6 +438,10 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     dbrelay_request_t *request;
     size_t len;
     int cplength;
+    ngx_http_dbrelay_loc_conf_t  *vlcf;
+
+    vlcf = ngx_http_get_module_loc_conf(r, ngx_http_dbrelay_module);
+
 
     log = r->connection->log;
 
@@ -468,6 +511,7 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
        ngx_log_error(NGX_LOG_DEBUG, log, 0, "Accept: \"%s\"", header_value);
        free(header_value);
     }
+
     if (accepts_application_json(r)) {
        r->headers_out.content_type.len = sizeof("application/json") - 1;
        r->headers_out.content_type.data = (u_char *) "application/json";
