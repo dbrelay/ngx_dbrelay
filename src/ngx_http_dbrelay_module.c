@@ -395,6 +395,7 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     ngx_buf_t                 *b;
     ngx_chain_t                out;
     u_char *json_output;
+    u_char *header_value;
     dbrelay_request_t *request;
     size_t len;
     int cplength;
