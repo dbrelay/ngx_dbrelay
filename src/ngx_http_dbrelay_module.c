@@ -670,6 +670,7 @@ void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request)
    ngx_buf_t *buf;
    ngx_chain_t *chain;
    unsigned long bufsz = 0;
+   int chop = 0;
 
    ngx_log_error(NGX_LOG_INFO, request->log, 0, "parsing post data");
    dbrelay_log_debug(request, "parsing post data");
@@ -705,8 +706,11 @@ void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request)
       }
    }
    *k='\0';
-   while (v>=value && (*v=='\n' || *v=='\r')) *v--='\0';
-   *v='\0';
+   while (v>=value && (*v=='\n' || *v=='\r')) {
+     *v--='\0';
+     chop = 1;
+   }
+   if (!chop) *v='\0';
    write_value(request, key, value);
    free(value);
 }

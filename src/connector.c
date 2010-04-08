@@ -188,10 +188,11 @@ main(int argc, char **argv)
               free(results);
 	      if (request.connection_timeout) set_timer(request.connection_timeout);
            } else if (ret == DIE) {
-              log_msg("exiting.\n"); 
-              log_close();
+              log_msg("sending BYE.\n"); 
               dbrelay_socket_send_string(s2, ":BYE\n");
               close(s2);
+              log_msg("exiting.\n"); 
+              log_close();
               exit(0);
            } else if (ret == OK) {
               dbrelay_socket_send_string(s2, ":OK\n");
