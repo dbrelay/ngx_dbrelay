@@ -236,32 +236,32 @@ process_line(char *line)
       return ERR;
    }
 
-   if (check_command(line, "HELO", NULL)) return HELO;
-   else if (check_command(line, "QUIT", NULL)) return QUIT;
-   else if (check_command(line, "RUN", NULL)) return RUN;
-   else if (check_command(line, "DIE", NULL)) return DIE;
-   else if (check_command(line, "SET NAME", &request.connection_name)) {
+   if (check_command(line, "HELO", NULL, 0)) return HELO;
+   else if (check_command(line, "QUIT", NULL, 0)) return QUIT;
+   else if (check_command(line, "RUN", NULL, 0)) return RUN;
+   else if (check_command(line, "DIE", NULL, 0)) return DIE;
+   else if (check_command(line, "SET NAME", &request.connection_name, sizeof(request.connection_name))) {
       log_msg("connection name %s\n");
       return OK;
    }
-   else if (check_command(line, "SET PORT", &request.sql_port)) return OK;
-   else if (check_command(line, "SET SERVER", &request.sql_server)) return OK;
-   else if (check_command(line, "SET DATABASE", &request.sql_database)) return OK;
-   else if (check_command(line, "SET USER", &request.sql_user)) {
+   else if (check_command(line, "SET PORT", &request.sql_port, sizeof(request.sql_port))) return OK;
+   else if (check_command(line, "SET SERVER", &request.sql_server, sizeof(request.sql_server))) return OK;
+   else if (check_command(line, "SET DATABASE", &request.sql_database, sizeof(request.sql_database))) return OK;
+   else if (check_command(line, "SET USER", &request.sql_user, sizeof(request.sql_port))) {
      log_msg("username %s\n", request.sql_user);
      return OK;
    }
-   else if (check_command(line, "SET PASSWORD", &request.sql_password)) return OK;
-   else if (check_command(line, "SET APPNAME", &request.connection_name)) return OK;
-   else if (check_command(line, "SET TIMEOUT", timeout_str)) {
+   else if (check_command(line, "SET PASSWORD", &request.sql_password, sizeof(request.sql_password))) return OK;
+   else if (check_command(line, "SET APPNAME", &request.connection_name, sizeof(request.connection_name))) return OK;
+   else if (check_command(line, "SET TIMEOUT", timeout_str, sizeof(timeout_str))) {
       request.connection_timeout = atol(timeout_str);
       return OK;
    }
-   else if (check_command(line, "SET FLAGS", flag_str)) {
+   else if (check_command(line, "SET FLAGS", flag_str, sizeof(flag_str))) {
       request.flags = (unsigned long) atol(flag_str);
       return OK;
    }
-   else if (check_command(line, "SQL", arg)) {
+   else if (check_command(line, "SQL", arg, sizeof(arg))) {
       if (!strcmp(arg, "BEGIN")) {
          log_msg("sql mode on\n");
          receive_sql = 1;
@@ -279,20 +279,29 @@ process_line(char *line)
       if (receive_sql) return CONT;
       else return OK;
    }
-   else if (check_command(line, "RUN", NULL)) {
+   else if (check_command(line, "RUN", NULL, 0)) {
       return RUN;
    }
 
    return ERR;
 }
+static void
+copy_value(char *dest, char *src, int sz)
+{
+   if (strlen(src) < (unsigned int) sz) strcpy(dest, src);
+   else {
+      strncpy(dest, src, sz - 1);
+      dest[sz-1]='\0';
+   }
+}
 int
-check_command(char *line, char *command, char *dest)
+check_command(char *line, char *command, char *dest, int maxsz)
 {
    int cmdlen = strlen(command);
 
    if (strlen(line)>=cmdlen+1 && !strncmp(&line[1], command, cmdlen)) {
       if (dest && strlen(line)>cmdlen+1) {
-         strcpy(dest, &line[cmdlen+2]);
+         copy_value(dest, &line[cmdlen+2], maxsz);
       }
       return 1;
    } else {
