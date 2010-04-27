@@ -906,3 +906,13 @@ static int calc_time(struct timeval *start, struct timeval *now)
    return (secs * 1000000 + usecs);
 }
 
+void
+dbrelay_copy_string(char *dest, char *src, int sz)
+{
+   if (strlen(src) < (unsigned int) sz) strcpy(dest, src);
+   else {
+      strncpy(dest, src, sz - 1);
+      dest[sz-1]='\0';
+   }
+}
+

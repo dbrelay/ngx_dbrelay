@@ -285,15 +285,6 @@ process_line(char *line)
 
    return ERR;
 }
-static void
-copy_value(char *dest, char *src, int sz)
-{
-   if (strlen(src) < (unsigned int) sz) strcpy(dest, src);
-   else {
-      strncpy(dest, src, sz - 1);
-      dest[sz-1]='\0';
-   }
-}
 int
 check_command(char *line, char *command, char *dest, int maxsz)
 {
@@ -301,7 +292,7 @@ check_command(char *line, char *command, char *dest, int maxsz)
 
    if (strlen(line)>=cmdlen+1 && !strncmp(&line[1], command, cmdlen)) {
       if (dest && strlen(line)>cmdlen+1) {
-         copy_value(dest, &line[cmdlen+2], maxsz);
+         dbrelay_copy_string(dest, &line[cmdlen+2], maxsz);
       }
       return 1;
    } else {
