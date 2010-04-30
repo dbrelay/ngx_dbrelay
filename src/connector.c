@@ -247,7 +247,7 @@ process_line(char *line)
    else if (check_command(line, "SET PORT", &request.sql_port, sizeof(request.sql_port))) return OK;
    else if (check_command(line, "SET SERVER", &request.sql_server, sizeof(request.sql_server))) return OK;
    else if (check_command(line, "SET DATABASE", &request.sql_database, sizeof(request.sql_database))) return OK;
-   else if (check_command(line, "SET USER", &request.sql_user, sizeof(request.sql_port))) {
+   else if (check_command(line, "SET USER", &request.sql_user, sizeof(request.sql_user))) {
      log_msg("username %s\n", request.sql_user);
      return OK;
    }
