@@ -53,7 +53,7 @@ dbrelay_socket_create(char *sock_path)
    len = strlen(local.sun_path) + sizeof(local.sun_family) + 1;
    ret = bind(s, (struct sockaddr *)&local, len);
 
-   listen(s, 300);
+   listen(s, 99);
 
    return s;
 }
