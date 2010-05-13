@@ -537,6 +537,15 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
       if ((helper_pid = dbrelay_conn_initialize(s, request))==-1) {
          dbrelay_db_restart_json(request, &json);
          strcpy(error_string, "Couldn't initialize connector");
+         dbrelay_db_restart_json(request, &json);
+         dbrelay_write_json_log(json, request, "Couldn't initialize connector");
+         if (IS_SET(request->js_callback) || IS_SET(request->js_error))
+           json_end_callback(json);
+
+         free(newsql);
+         ret = (u_char *) json_to_string(json);
+         json_free(json);
+         return ret;
       } else if (helper_pid) {
          // write the connectors pid into shared memory
          connections = dbrelay_time_get_shmem(request);
