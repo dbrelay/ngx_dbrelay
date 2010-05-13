@@ -170,12 +170,16 @@ dbrelay_conn_set_option(int s, char *option, char *value)
    char out_buf[DBRELAY_SOCKET_BUFSIZE];
    char in_buf[DBRELAY_SOCKET_BUFSIZE];
    int in_ptr = -1;
-   char set_string[100];
+   char *set_string;
 
+   set_string = (char *) malloc(10 + strlen(option) + strlen(value));
    sprintf(set_string, ":SET %s %s\n", option, value);
    /* don't wait for return on failed send */
-   if (dbrelay_socket_send_string(s, set_string)==-1) 
+   if (dbrelay_socket_send_string(s, set_string)==-1) {
+      free(set_string);
       return -1; 
+   }
+   free(set_string);
    dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf, 0);
    //fprintf(stderr, "set %s returned %s\n", option, out_buf);
    return 0; 

@@ -563,15 +563,6 @@ ngx_http_dbrelay_create_loc_conf(ngx_conf_t *cf)
     return conf;
 }
 static void 
-copy_value(char *dest, char *src, int sz)
-{
-   if (strlen(src) < (unsigned int) sz) strcpy(dest, src);
-   else {
-      strncpy(dest, src, sz - 1);
-      dest[sz-1]='\0';
-   }
-}
-static void 
 write_value(dbrelay_request_t *request, char *key, char *value)
 {
    u_char *dst, *src;
@@ -594,28 +585,28 @@ write_value(dbrelay_request_t *request, char *key, char *value)
    ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "unescaped value pass 2 %s", value);
 
    if (!strcmp(key, "cmd")) {
-      copy_value(request->cmd, value, DBRELAY_OBJ_SZ);
+      dbrelay_copy_string(request->cmd, value, DBRELAY_OBJ_SZ);
    } else if (!strcmp(key, "status")) {
       request->status = 1;
    } else if (!strcmp(key, "sql_dbtype")) {
-      copy_value(request->sql_dbtype, value, DBRELAY_OBJ_SZ);
+      dbrelay_copy_string(request->sql_dbtype, value, DBRELAY_OBJ_SZ);
    } else if (!strcmp(key, "sql_database")) {
-      copy_value(request->sql_database, value, DBRELAY_OBJ_SZ);
+      dbrelay_copy_string(request->sql_database, value, DBRELAY_OBJ_SZ);
    } else if (!strcmp(key, "sql_server")) {
-      copy_value(request->sql_server, value, DBRELAY_NAME_SZ);
+      dbrelay_copy_string(request->sql_server, value, DBRELAY_NAME_SZ);
    } else if (!strcmp(key, "sql_user")) {
-      copy_value(request->sql_user, value, DBRELAY_OBJ_SZ);
+      dbrelay_copy_string(request->sql_user, value, DBRELAY_OBJ_SZ);
    } else if (!strcmp(key, "sql_port")) {
-      copy_value(request->sql_port, value, 6);
+      dbrelay_copy_string(request->sql_port, value, 6);
    } else if (!strcmp(key, "sql")) {
       request->sql = strdup(value);
    } else if (!strcmp(key, "query_tag")) {
-      copy_value(request->query_tag, value, DBRELAY_NAME_SZ);
+      dbrelay_copy_string(request->query_tag, value, DBRELAY_NAME_SZ);
    } else if (!strcmp(key, "sql_password")) {
-      copy_value(request->sql_password, value, DBRELAY_OBJ_SZ);
+      dbrelay_copy_string(request->sql_password, value, DBRELAY_OBJ_SZ);
       noprint = 1;
    } else if (!strcmp(key, "connection_name")) {
-      copy_value(request->connection_name, value, DBRELAY_NAME_SZ);
+      dbrelay_copy_string(request->connection_name, value, DBRELAY_NAME_SZ);
    } else if (!strcmp(key, "connection_timeout")) {
       request->connection_timeout = atol(value);
    } else if (!strcmp(key, "http_keepalive")) {
@@ -636,9 +627,9 @@ write_value(dbrelay_request_t *request, char *key, char *value)
    } else if (!strcmp(key, "flags")) {
       write_flag_values(request, value);
    } else if (!strcmp(key, "js_callback")) {
-      copy_value(request->js_callback, value, DBRELAY_NAME_SZ);
+      dbrelay_copy_string(request->js_callback, value, DBRELAY_NAME_SZ);
    } else if (!strcmp(key, "js_error")) {
-      copy_value(request->js_error, value, DBRELAY_NAME_SZ);
+      dbrelay_copy_string(request->js_error, value, DBRELAY_NAME_SZ);
    }
    
    if (!noprint) {
