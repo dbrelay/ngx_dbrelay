@@ -85,6 +85,8 @@ main(int argc, char **argv)
       sock_path = SOCK_PATH;
    }
 
+   set_timer(60); // set a default timer in case nobody attaches
+
    api->init();
 
    s = dbrelay_socket_create(sock_path);
