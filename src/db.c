@@ -564,7 +564,7 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
       if (have_error) {
          dbrelay_db_restart_json(request, &json);
          dbrelay_log_debug(request, "have error %s\n", ret);
-         strcpy(error_string, (char *) ret);
+         dbrelay_copy_string(error_string, (char *)ret, sizeof(error_string));
       } else if (!IS_SET((char *)ret)) {
          dbrelay_log_warn(request, "Connector returned no information");
          dbrelay_log_info(request, "Query was: %s", newsql);
@@ -582,11 +582,11 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
         //if (login_msgno == 18452 && IS_EMPTY(request->sql_password)) {
         if (IS_EMPTY(request->sql_password)) {
 	    strcpy(error_string, "Login failed and no password was set, please check.\n");
-	    strcat(error_string, api->error(conn->db));
+	    dbrelay_copy_string(&error_string[strlen(error_string)], api->error(conn->db), sizeof(error_string) - strlen(error_string));
         } else if (!strlen(api->error(conn->db))) {
 	    strcpy(error_string, "Connection failed.\n");
         } else {
-	    strcpy(error_string, api->error(conn->db));
+            dbrelay_copy_string(error_string, api->error(conn->db), sizeof(error_string));
         }
         dbrelay_db_restart_json(request, &json);
       } else {
