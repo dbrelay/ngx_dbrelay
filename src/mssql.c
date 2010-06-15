@@ -388,16 +388,70 @@ char *dbrelay_mssql_error(void *db)
       return login_error;
    }
 }
+static void split_tablename(char *orig, char *schema, char *table)
+{
+   int quote = 0;
+   int bracket = 0;
+   int firstdot = -1;
+   int i, start;
+   char *tmp;
+
+   for (i=0; i<strlen(orig); i++) {
+        if (orig[i]=='"') quote = quote ? 0 : 1;
+        if (!bracket && orig[i]=='[') bracket = 1;
+        if (bracket && orig[i]==']') bracket = 0;
+        if (!quote && !bracket) {
+            if (orig[i]=='.') {
+                firstdot = i;
+                break;
+            }
+        }
+   }
+
+   if (firstdot == -1) {
+      schema[0] = '\0';
+      strcpy(table,orig);
+   } else {
+      tmp = strdup(orig);
+      tmp[firstdot]='\0';
+      start = 0;
+      if (tmp[start]=='"' || tmp[start]=='[') {
+         tmp[firstdot-1]='\0';
+         start++;
+      }
+      strcpy(schema,&tmp[start]);
+
+      start = firstdot+1;
+      if (tmp[start]=='"' || tmp[start]=='[') {
+         tmp[start+strlen(&tmp[start])-1]='\0';
+         start++;
+      }
+      strcpy(table,&tmp[start]);
+      free(tmp);
+   }
+}
+
 char *dbrelay_mssql_catalogsql(int dbcmd, char **params)
 {
    char *sql;
+   char *schema, *table;
    char *columns_mask = "SELECT COLUMN_NAME,IS_NULLABLE,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH, NUMERIC_SCALE, CASE WHEN COLUMN_DEFAULT IS NULL THEN 0 ELSE 1 END AS HAS_DEFAULT, COLUMNPROPERTY(object_id(TABLE_NAME), COLUMN_NAME, 'IsIdentity') as IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s'";
+   char *columns_mask2 = "SELECT COLUMN_NAME,IS_NULLABLE,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH, NUMERIC_SCALE, CASE WHEN COLUMN_DEFAULT IS NULL THEN 0 ELSE 1 END AS HAS_DEFAULT, COLUMNPROPERTY(object_id(TABLE_NAME), COLUMN_NAME, 'IsIdentity') as IS_IDENTITY FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '%s' AND TABLE_SCHEMA = '%s'";
    char *pkey_mask = "SELECT c.COLUMN_NAME \
 FROM  INFORMATION_SCHEMA.TABLE_CONSTRAINTS pk , \
 INFORMATION_SCHEMA.KEY_COLUMN_USAGE c \
 WHERE pk.TABLE_NAME = '%s' \
 AND   CONSTRAINT_TYPE = 'PRIMARY KEY' \
 AND   c.TABLE_NAME = pk.TABLE_NAME \
+AND   c.CONSTRAINT_NAME = pk.CONSTRAINT_NAME";
+   char *pkey_mask2 = "SELECT c.COLUMN_NAME \
+FROM  INFORMATION_SCHEMA.TABLE_CONSTRAINTS pk , \
+INFORMATION_SCHEMA.KEY_COLUMN_USAGE c \
+WHERE pk.TABLE_NAME = '%s' \
+AND   pk.TABLE_SCHEMA = '%s' \
+AND   CONSTRAINT_TYPE = 'PRIMARY KEY' \
+AND   c.TABLE_NAME = pk.TABLE_NAME \
+AND   c.TABLE_SCHEMA = pk.TABLE_SCHEMA \
 AND   c.CONSTRAINT_NAME = pk.CONSTRAINT_NAME";
 
    switch (dbcmd) {
@@ -414,13 +468,29 @@ AND   c.CONSTRAINT_NAME = pk.CONSTRAINT_NAME";
          return strdup("SELECT * FROM INFORMATION_SCHEMA.tables WHERE TABLE_TYPE='BASE TABLE'");
          break;
       case DBRELAY_DBCMD_COLUMNS:
-         sql = malloc(strlen(columns_mask) + strlen(params[0]));
-         sprintf(sql, columns_mask, params[0]);
+         schema = (char *) malloc(strlen(params[0])+1);
+         table = (char *) malloc(strlen(params[0])+1);
+         sql = malloc(strlen(columns_mask2) + strlen(params[0]));
+         split_tablename(params[0], schema, table);
+         if (schema && strlen(schema)) {
+            sprintf(sql, columns_mask2, table, schema);
+         } else 
+            sprintf(sql, columns_mask, table);
+         free(table);
+         free(schema);
          return sql;
          break;
       case DBRELAY_DBCMD_PKEY: 
-         sql = malloc(strlen(pkey_mask) + strlen(params[0]));
-         sprintf(sql, pkey_mask, params[0]);
+         schema = (char *) malloc(strlen(params[0])+1);
+         table = (char *) malloc(strlen(params[0])+1);
+         sql = malloc(strlen(pkey_mask2) + strlen(params[0]));
+         split_tablename(params[0], schema, table);
+         if (schema && strlen(schema))
+            sprintf(sql, pkey_mask2, table, schema);
+         else 
+            sprintf(sql, pkey_mask, table);
+         free(table);
+         free(schema);
          return sql;
          break;
    }
