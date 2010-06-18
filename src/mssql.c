@@ -393,7 +393,8 @@ static void split_tablename(char *orig, char *schema, char *table)
    int quote = 0;
    int bracket = 0;
    int firstdot = -1;
-   int i, start;
+   size_t i; 
+   int start;
    char *tmp;
 
    for (i=0; i<strlen(orig); i++) {
