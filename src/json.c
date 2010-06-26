@@ -159,7 +159,7 @@ static void append_nonprintable(stringbuf_t *sb, char c)
       case '\r': sb_append(sb, "\\r"); break;
       case '\t': sb_append(sb, "\\t"); break;
       default: 
-         sprintf(buf, "\\u%x%x", 0, (unsigned char) c);
+         sprintf(buf, "\\u%02x%02x", 0, (unsigned char) c);
          sb_append(sb, buf); 
       break;
    }
