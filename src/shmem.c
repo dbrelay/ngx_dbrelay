@@ -30,9 +30,13 @@ void dbrelay_create_shmem()
    int semid;
    dbrelay_connection_t *connections;
    union semun sem;
+   void * buf;
    
    key = dbrelay_get_ipc_key();
-   shmid = shmget(key, DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t), IPC_CREAT | 0666);
+   buf = malloc(DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t));
+   if (buf==NULL) perror("malloc");
+   shmid = shmget(key, DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t), IPC_CREAT | 0600);
+   if (shmid==-1) perror("shmget");
    connections = (dbrelay_connection_t *) shmat(shmid, NULL, 0);
    memset(connections, '\0', DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t));
    shmdt(connections);
