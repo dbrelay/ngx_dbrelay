@@ -839,17 +839,17 @@ void dbrelay_write_json_colinfo(json_t *json, void *db, int colnum, int *maxcoln
    l = api->collen(db, colnum);
    if (l!=0) {
       sprintf(tmp, "%d", l);
-      json_add_string(json, "length", tmp);
+      json_add_number(json, "length", tmp);
    }
    l = api->colprec(db, colnum);
    if (l!=0) {
       sprintf(tmp, "%d", l);
-      json_add_string(json, "precision", tmp);
+      json_add_number(json, "precision", tmp);
    }
    l = api->colscale(db, colnum);
    if (l!=0) {
       sprintf(tmp, "%d", l);
-      json_add_string(json, "scale", tmp);
+      json_add_number(json, "scale", tmp);
    }
    json_end_object(json);
 }
