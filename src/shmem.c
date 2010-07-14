@@ -42,7 +42,7 @@ void dbrelay_create_shmem()
    shmdt(connections);
 
    key = dbrelay_get_ipc_key();
-   semid = semget(key, 1, IPC_CREAT | 0666);
+   semid = semget(key, 1, IPC_CREAT | 0600);
    if (semid==-1) perror("semget");
    sem.val = 1;
    if (semctl(semid, 0, SETVAL, sem)==-1)
@@ -87,7 +87,7 @@ dbrelay_connection_t *dbrelay_get_shmem()
    dbrelay_lock_shmem();
 
    key = dbrelay_get_ipc_key();
-   shmid = shmget(key, DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t), 0666);
+   shmid = shmget(key, DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t), 0600);
    if (shmid==-1) return NULL;
 
    connections = (dbrelay_connection_t *) shmat(shmid, NULL, 0);
@@ -107,10 +107,10 @@ void dbrelay_destroy_shmem()
    int semid;
    
    key = dbrelay_get_ipc_key();
-   shmid = shmget(key, DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t), IPC_CREAT | 0666);
+   shmid = shmget(key, DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t), IPC_CREAT | 0600);
    shmctl(shmid, IPC_RMID, NULL);
 
    key = dbrelay_get_ipc_key();
-   semid = semget(key, 1, IPC_CREAT | 0666);
+   semid = semget(key, 1, IPC_CREAT | 0600);
    semctl(semid, 0, IPC_RMID);
 }
