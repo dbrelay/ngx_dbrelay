@@ -5,6 +5,7 @@
 #ifndef _DBRELAYDB_H_INCLUDED_
 #define _DBRELAYDB_H_INCLUDED_
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
