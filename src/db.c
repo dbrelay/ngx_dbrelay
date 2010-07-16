@@ -109,7 +109,10 @@ static void dbrelay_db_populate_connection(dbrelay_request_t *request, dbrelay_c
       if (IS_SET(request->sock_path)) {
          strcpy(conn->sock_path, request->sock_path);
       } else {
-         tmpnam(conn->sock_path);
+         if (tmpnam(conn->sock_path)==NULL) {
+             dbrelay_log_error(request, "Could not get new socket name");
+             return;
+         }
          dbrelay_conn_launch_connector(conn->sock_path, request);
       }
       dbrelay_log_info(request, "socket name %s", conn->sock_path);
