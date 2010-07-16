@@ -1,3 +1,6 @@
+THIS FILE IS OUT OF DATE, NEEDS UPDATE as of 2010.07.16:
+========================================================
+
 CLEANUP : implement automatic tabbing of json results
 CLEANUP : more robust error handling of database code
 CLEANUP : run_query() is a god awful mess, restructure it

@@ -2,11 +2,11 @@
 
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
-    <title>Viaduct table example</title>
+    <title>DB Relay table example</title>
     <script type="text/javascript" src="jquery-1.2.6.pack.js"></script>
     <script type="text/javascript" charset="utf-8">
 
-      var viaduct = "http://localhost:8080/sql";
+      var dbrelay = "http://localhost:8080/sql";
     
       var sql_conn = {
         sql_server   : "192.168.16.128",
@@ -14,18 +14,18 @@
         sql_user     : "sa"
       };
       
-      function viaductQuery( viaduct, connection, sql, callback, tag) {
-	alert('in viaductQuery');
+      function dbrelayQuery( dbrelay, connection, sql, callback, tag) {
+	alert('in dbrelayQuery');
         connection[ "sql" ] = sql;
         if ( tag !== undefined ) connection[ "query_tag" ] = tag;
-        $.post( viaduct, connection, callback, "json");
+        $.post( dbrelay, connection, callback, "json");
       };
 
       $(document).ready(function() {
-        viaductQuery(
-          viaduct,
+        dbrelayQuery(
+          dbrelay,
           sql_conn,
-          'select * from viaduct1 select * from viaduct2',
+          'select * from dbrelay1 select * from dbrelay2',
           processRowSets,
           'Example'
         );
