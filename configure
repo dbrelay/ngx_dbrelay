@@ -3797,7 +3797,7 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
 else
   ac_cv_header_stdc=no
 fi
-rm -f conftest*
+rm -f -r conftest*
 
 fi
 
@@ -3818,7 +3818,7 @@ if (eval "$ac_cpp conftest.$ac_ext") 2>&5 |
 else
   ac_cv_header_stdc=no
 fi
-rm -f conftest*
+rm -f -r conftest*
 
 fi
 
@@ -4941,7 +4941,7 @@ _ACEOF
 else
   haveSO_NOSIGPIPE=no
 fi
-rm -f conftest*
+rm -f -r conftest*
 
 { echo "$as_me:$LINENO: result: $haveSO_NOSIGPIPE" >&5
 echo "${ECHO_T}$haveSO_NOSIGPIPE" >&6; }
@@ -4970,7 +4970,7 @@ _ACEOF
 else
   haveMSG_NOSIGNAL=no
 fi
-rm -f conftest*
+rm -f -r conftest*
 
 { echo "$as_me:$LINENO: result: $haveMSG_NOSIGNAL" >&5
 echo "${ECHO_T}$haveMSG_NOSIGNAL" >&6; }
