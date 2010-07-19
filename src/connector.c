@@ -163,7 +163,7 @@ main(int argc, char **argv)
       in_ptr = -1;
       // get a newline terminated string from the client
       while (!done && (t=dbrelay_socket_recv_string(s2, in_buf, &in_ptr, line, 30))>0) {
-           log_msg("line = %s\n", line);
+           if (strlen(line)<9 || strncmp(line, ":SET PASS", 9)) log_msg("line = %s\n", line);
            ret = process_line(line);
            
            if (ret == HELO) {
