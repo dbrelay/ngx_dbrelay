@@ -36,6 +36,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
+#include <errno.h>
 #include "dbrelay.h"
 #include "../include/dbrelay_config.h"
 
@@ -90,7 +91,10 @@ dbrelay_connection_t *dbrelay_lock_shmem()
 
    key = dbrelay_get_ipc_key();
    semid = semget(key, 1, 0);
-   if (semid==-1) perror("semget");
+   if (semid==-1) {
+      if (errno!=ENOENT) perror("semget");
+      return NULL;
+   }
 
    sb.sem_op = -1;
    if (semop(semid, &sb, 1)==1)
