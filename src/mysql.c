@@ -57,7 +57,9 @@ dbrelay_dbapi_t dbrelay_mysql_api =
    &dbrelay_mysql_colscale,
    &dbrelay_mysql_fetch_row,
    &dbrelay_mysql_colvalue,
-   &dbrelay_mysql_error
+   &dbrelay_mysql_error,
+   &dbrelay_mysql_catalogsql,
+   &dbrelay_mysql_isalive
 };
 
 void dbrelay_mysql_init()
@@ -179,6 +181,7 @@ static char *dbrelay_mysql_get_sqltype_string(char *dest, int coltype, int colle
 	}
 	return dest;
 }
+/*
 static unsigned char dbrelay_mysql_has_length(int coltype)
 {
 	if (coltype==MYSQL_TYPE_VARCHAR ||
@@ -195,6 +198,7 @@ static unsigned char dbrelay_mysql_has_prec(int coltype)
 	else
 		return 0;
 }
+*/
 int dbrelay_mysql_connected(void *db)
 {
    mysql_db_t *mydb = (mysql_db_t *) db;
@@ -293,3 +297,36 @@ char *dbrelay_mysql_error(void *db)
 
    return (char *) mysql_error(mydb->mysql);
 }
+
+char *dbrelay_mysql_catalogsql(int dbcmd, char **params){
+   switch (dbcmd) {
+      case DBRELAY_DBCMD_BEGIN:
+         return strdup("BEGIN TRAN");
+         break;
+      case DBRELAY_DBCMD_COMMIT:
+         return strdup("COMMIT TRAN");
+         break;
+      case DBRELAY_DBCMD_ROLLBACK:
+         return strdup("ROLLBACK TRAN");
+         break;
+      case DBRELAY_DBCMD_TABLES:
+         return NULL;
+         break;
+      case DBRELAY_DBCMD_COLUMNS:
+         return NULL;
+         break;
+      case DBRELAY_DBCMD_PKEY:
+         return NULL;
+         break;
+   }
+   return NULL;
+}
+
+
+int dbrelay_mysql_isalive(void *db)
+{
+   mysql_db_t *mydb = (mysql_db_t *) db;
+  
+   return mysql_ping(mydb->mysql);
+}
+

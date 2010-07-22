@@ -67,5 +67,7 @@ int dbrelay_mysql_colscale(void *db, int colnum);
 int dbrelay_mysql_fetch_row(void *db);
 char *dbrelay_mysql_colvalue(void *db, int colnum, char *dest);
 char *dbrelay_mysql_error(void *db);
+char *dbrelay_mysql_catalogsql(int dbcmd, char **params);
+int dbrelay_mysql_isalive(void *db);
 
 #endif
