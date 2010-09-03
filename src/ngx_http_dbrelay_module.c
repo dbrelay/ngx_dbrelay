@@ -48,6 +48,7 @@ typedef struct {
 } ngx_http_dbrelay_loc_conf_t;
 
 void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request);
+void parse_post_query_file(ngx_temp_file_t *bufs, dbrelay_request_t *request);
 void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request);
 static char *ngx_http_dbrelay_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 //static ngx_int_t ngx_http_dbrelay_create_request(ngx_http_request_t *r);
@@ -419,6 +420,10 @@ ngx_http_dbrelay_handler(ngx_http_request_t *r)
 
     r->root_tested = 1;
 
+    r->request_body_in_file_only = 1;
+    r->request_body_in_persistent_file = 1;
+    r->request_body_in_clean_file = 1;
+
     ngx_log_error(NGX_LOG_DEBUG, log, 0, "here1");
     clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
 
@@ -488,7 +493,9 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
 	parse_get_query_string(r->args, request);
     } else
     /* is POST method? */
-    if (r->request_body->buf && r->request_body->buf->pos!=NULL) {
+    if (r->request_body->temp_file && r->request_body->temp_file->file.fd!=NGX_INVALID_FILE) {
+	parse_post_query_file(r->request_body->temp_file, request);
+    } else if (r->request_body->buf && r->request_body->buf->pos!=NULL) {
 	parse_post_query_string(r->request_body->bufs, request);
     } 
     /* FIX ME - need to check to see if we have everything and error if not */
@@ -681,6 +688,61 @@ write_flag_values(dbrelay_request_t *request, char *value)
       else if (!strcmp(tok, "nomagic")) request->flags|=DBRELAY_FLAG_NOMAGIC; 
    }
    free(flags);
+}
+void parse_post_query_file(ngx_temp_file_t *temp_file, dbrelay_request_t *request)
+{
+   ssize_t bytes_read;
+   u_char buf[20000];
+   u_char tmp[100];
+   char key[100];
+   char *value;
+   char *s, *k = key, *v;
+   int target = 0;
+   unsigned long bufsz = 0;
+   int chop = 0;
+
+   ngx_log_error(NGX_LOG_INFO, request->log, 0, "parsing post file");
+
+   lseek(temp_file->file.fd, 0, SEEK_SET);
+   while ((bytes_read = read(temp_file->file.fd, &buf[bufsz], sizeof(buf)-bufsz))>0 && bufsz<=sizeof(buf)) 
+   {
+      bufsz += bytes_read;
+   }
+   
+   ngx_log_error(NGX_LOG_INFO, request->log, 0, "read %l bytes", bytes_read);
+   memcpy(tmp, buf, 100);
+   tmp[99]=0;
+   ngx_log_error(NGX_LOG_INFO, request->log, 0, "first 100 bytes %s", tmp);
+
+   value = (char *) malloc(bufsz);
+   v = value;
+   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "post data %l bytes", bufsz);
+
+   for (s= (char *)buf; s !=  (char *)&buf[bytes_read-1]; s++)
+   { 
+	      if (*s=='&') {
+		  *k='\0';
+		  *v='\0';
+		  write_value(request, key, value);
+		  target=0;
+		  k=key;
+	      } else if (*s=='=') {
+		  target=1;
+		  v=value;
+	      } else if (target==0) {
+		  *k++=*s;
+	      } else {
+		  *v++=*s;
+	      }
+   }
+   *k='\0';
+   while (v>=value && (*v=='\n' || *v=='\r')) {
+     *v--='\0';
+     chop = 1;
+   }
+   if (!chop) *v='\0';
+   write_value(request, key, value);
+   free(value);
 }
 void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request)
 {
