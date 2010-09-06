@@ -41,6 +41,7 @@
 #include <unistd.h>
 #include <sys/ipc.h>
 #include <sys/signal.h>
+#include <sys/stat.h>
 #include "../include/config.h"
 
 #ifndef CMDLINE

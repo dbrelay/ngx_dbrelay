@@ -692,7 +692,7 @@ write_flag_values(dbrelay_request_t *request, char *value)
 void parse_post_query_file(ngx_temp_file_t *temp_file, dbrelay_request_t *request)
 {
    ssize_t bytes_read;
-   u_char buf[20000];
+   u_char *buf;
    u_char tmp[100];
    char key[100];
    char *value;
@@ -700,11 +700,15 @@ void parse_post_query_file(ngx_temp_file_t *temp_file, dbrelay_request_t *reques
    int target = 0;
    unsigned long bufsz = 0;
    int chop = 0;
+   struct stat statbuf;
 
    ngx_log_error(NGX_LOG_INFO, request->log, 0, "parsing post file");
 
+   fstat(temp_file->file.fd, &statbuf);
+   buf = (u_char *) malloc(statbuf.st_size);
+
    lseek(temp_file->file.fd, 0, SEEK_SET);
-   while ((bytes_read = read(temp_file->file.fd, &buf[bufsz], sizeof(buf)-bufsz))>0 && bufsz<=sizeof(buf)) 
+   while ((bytes_read = read(temp_file->file.fd, &buf[bufsz], statbuf.st_size-bufsz))>0 && bufsz<=sizeof(buf)) 
    {
       bufsz += bytes_read;
    }
