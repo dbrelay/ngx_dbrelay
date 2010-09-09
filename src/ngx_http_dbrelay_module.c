@@ -693,7 +693,6 @@ void parse_post_query_file(ngx_temp_file_t *temp_file, dbrelay_request_t *reques
 {
    ssize_t bytes_read;
    u_char *buf;
-   u_char tmp[100];
    char key[100];
    char *value;
    char *s, *k = key, *v;
@@ -702,27 +701,22 @@ void parse_post_query_file(ngx_temp_file_t *temp_file, dbrelay_request_t *reques
    int chop = 0;
    struct stat statbuf;
 
-   ngx_log_error(NGX_LOG_INFO, request->log, 0, "parsing post file");
+   dbrelay_log_debug(request, "entering parse_post_query_file");
 
    fstat(temp_file->file.fd, &statbuf);
    buf = (u_char *) malloc(statbuf.st_size);
 
    lseek(temp_file->file.fd, 0, SEEK_SET);
-   while ((bytes_read = read(temp_file->file.fd, &buf[bufsz], statbuf.st_size-bufsz))>0 && bufsz<=sizeof(buf)) 
+   while ((bytes_read = read(temp_file->file.fd, &buf[bufsz], statbuf.st_size-bufsz))>0 && bufsz<=(unsigned long)statbuf.st_size) 
    {
       bufsz += bytes_read;
    }
    
-   ngx_log_error(NGX_LOG_INFO, request->log, 0, "read %l bytes", bytes_read);
-   memcpy(tmp, buf, 100);
-   tmp[99]=0;
-   ngx_log_error(NGX_LOG_INFO, request->log, 0, "first 100 bytes %s", tmp);
-
    value = (char *) malloc(bufsz);
    v = value;
    ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "post data %l bytes", bufsz);
 
-   for (s= (char *)buf; s !=  (char *)&buf[bytes_read-1]; s++)
+   for (s= (char *)buf; s !=  (char *)&buf[bufsz-1]; s++)
    { 
 	      if (*s=='&') {
 		  *k='\0';
@@ -747,6 +741,8 @@ void parse_post_query_file(ngx_temp_file_t *temp_file, dbrelay_request_t *reques
    if (!chop) *v='\0';
    write_value(request, key, value);
    free(value);
+   free(buf);
+   dbrelay_log_debug(request, "leaving parse_post_query_file");
 }
 void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request)
 {
@@ -759,8 +755,7 @@ void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request)
    unsigned long bufsz = 0;
    int chop = 0;
 
-   ngx_log_error(NGX_LOG_INFO, request->log, 0, "parsing post data");
-   dbrelay_log_debug(request, "parsing post data");
+   dbrelay_log_debug(request, "entering parse_post_query_string");
 
    for (chain = bufs; chain!=NULL; chain = chain->next) 
    {
@@ -800,6 +795,7 @@ void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request)
    if (!chop) *v='\0';
    write_value(request, key, value);
    free(value);
+   dbrelay_log_debug(request, "leaving parse_post_query_string");
 }
 void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request)
 {
