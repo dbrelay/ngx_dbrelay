@@ -613,13 +613,10 @@ write_value(dbrelay_request_t *request, char *key, char *value)
    for (i=0;i<strlen(value);i++) {
       if (value[i]=='+') value[i]=' ';
    }
-   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "unescaped value pass 1 %s", value);
 
    dst = (u_char *) value; src = (u_char *) value;
    ngx_unescape_uri(&dst, &src, strlen(value), 0);
-   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "prev last byte %d", (int) *dst);
    *dst = '\0';
-   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "unescaped value pass 2 %s", value);
 
    if (!strcmp(key, "cmd")) {
       dbrelay_copy_string(request->cmd, value, DBRELAY_OBJ_SZ);
