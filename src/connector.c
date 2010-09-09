@@ -107,7 +107,7 @@ set_signal()
    memset(&sigact, 0, sizeof(sigact));
    sigact.sa_handler = &timeout;
    sigfillset(&sigmask);
-   sigact.sa_mask = &sigmask;
+   sigact.sa_mask = sigmask;
    sigaction(SIGALRM, &sigact, NULL); 
 }
 
