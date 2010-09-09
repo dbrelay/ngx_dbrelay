@@ -63,6 +63,9 @@ extern dbrelay_dbapi_t *api;
 void log_open();
 void log_close();
 void log_msg(char *fmt, ...);
+void timeout(int i);
+int set_timer(int secs);
+void set_signal();
 
 char app_name[DBRELAY_NAME_SZ];
 char timeout_str[10];
@@ -85,7 +88,8 @@ void timeout(int i)
 }
 
 /* setup the timer for the specified timeout value */
-int set_timer(int secs)
+int 
+set_timer(int secs)
 {
   gettimeofday(&last_accessed, NULL);
   it.it_interval.tv_sec = 0;
@@ -93,6 +97,18 @@ int set_timer(int secs)
   it.it_value.tv_sec = secs; 
   it.it_value.tv_usec = 0;
   setitimer(ITIMER_REAL, &it,0);
+}
+void 
+set_signal()
+{
+   struct sigaction sigact;
+   sigset_t sigmask;
+
+   memset(&sigact, 0, sizeof(sigact));
+   sigact.sa_handler = &timeout;
+   sigfillset(&sigmask);
+   sigact.sa_mask = &sigmask;
+   sigaction(SIGALRM, &sigact, NULL); 
 }
 
 int
@@ -137,7 +153,8 @@ main(int argc, char **argv)
    log_msg("Using socket path %s\n", sock_path);
 
    // register SIGALRM handler
-   signal(SIGALRM,timeout); 
+   //signal(SIGALRM,timeout); 
+   set_signal(); 
 
    for (;;) {
       done = 0;
