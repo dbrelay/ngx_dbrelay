@@ -236,10 +236,4 @@ int dbrelay_socket_connect(char *sock_path, int timeout, int *error);
 int dbrelay_socket_recv_string(int s, char *in_buf, int *in_ptr, char *out_buf, int timeout);
 int dbrelay_socket_send_string(int s, char *str);
 
-/* emit.c */
-void dbrelay_write_json_log(json_t *json, dbrelay_request_t *request, char *error_string);
-void dbrelay_write_json_colinfo(json_t *json, void *db, int colnum, int *maxcolname);
-void dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolname);
-int dbrelay_db_fill_data(json_t *json, dbrelay_connection_t *conn);
-
 #endif /* _DBRELAY_H_INCLUDED_ */
