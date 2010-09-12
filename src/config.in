@@ -1,6 +1,6 @@
 addon_name=ngx_http_dbrelay_module
 HTTP_MODULES="$HTTP_MODULES ngx_http_dbrelay_module"
-NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_dbrelay_module.c $ngx_addon_dir/stringbuf.c $ngx_addon_dir/json.c $ngx_addon_dir/db.c $ngx_addon_dir/log.c $ngx_addon_dir/shmem.c $ngx_addon_dir/client.c $ngx_addon_dir/socket.c $ngx_addon_dir/admin.c $ngx_addon_dir/@DB_MODULE@"
+NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_dbrelay_module.c $ngx_addon_dir/stringbuf.c $ngx_addon_dir/json.c $ngx_addon_dir/db.c $ngx_addon_dir/log.c $ngx_addon_dir/shmem.c $ngx_addon_dir/client.c $ngx_addon_dir/socket.c $ngx_addon_dir/admin.c $ngx_addon_dir/status.c $ngx_addon_dir/emit.c $ngx_addon_dir/@DB_MODULE@"
 CORE_LIBS="$CORE_LIBS @DB_LIBS@ @DB_STATICLIBS@ @DBRELAY_EXTRA_LIBS@"
 CORE_INCS="$CORE_INCS @DB_INCS@"
 

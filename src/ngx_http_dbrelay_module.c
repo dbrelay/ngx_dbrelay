@@ -713,7 +713,7 @@ void parse_post_query_file(ngx_temp_file_t *temp_file, dbrelay_request_t *reques
    v = value;
    ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "post data %l bytes", bufsz);
 
-   for (s= (char *)buf; s !=  (char *)&buf[bufsz-1]; s++)
+   for (s= (char *)buf; s !=  (char *)&buf[bufsz]; s++)
    { 
 	      if (*s=='&') {
 		  *k='\0';
