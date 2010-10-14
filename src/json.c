@@ -228,6 +228,29 @@ void json_add_string(json_t *json, char *key, char *value)
 
    free(tmp);
 }
+void json_add_elem(json_t *json, char *value)
+{
+   char *s, *first, *tmp;
+   char c;
+   
+   tmp = strdup(value);
+
+   sb_append(json->sb, "\"");
+   for (s=tmp, first=tmp; *s; s++) {
+      if (!is_printable(*s)) {
+         c = *s;
+         *s='\0';
+         sb_append(json->sb, first);
+         append_nonprintable(json->sb, c);
+         first=s+1;	
+      }
+   }
+   sb_append(json->sb, first);
+   sb_append(json->sb, "\"");
+   json->pending = 0;
+
+   free(tmp);
+}
 void json_add_json(json_t *json, char *value)
 {
    sb_append(json->sb, value);

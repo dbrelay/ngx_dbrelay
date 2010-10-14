@@ -46,6 +46,9 @@
 #include "../include/dbrelay_config.h"
 
 extern dbrelay_dbapi_t *api;
+extern dbrelay_emitapi_t dbrelay_jsondict_api;
+extern dbrelay_emitapi_t dbrelay_jsonarr_api;
+extern dbrelay_emitapi_t dbrelay_csv_api;
 
 #define SOCK_PATH "/tmp/dbrelay/connector"
 #define DEBUG 1
@@ -156,6 +159,8 @@ main(int argc, char **argv)
    //signal(SIGALRM,timeout); 
    set_signal(); 
 
+   request.emitapi = &dbrelay_jsondict_api;
+
    for (;;) {
       done = 0;
       // wait for connection
@@ -184,7 +189,7 @@ main(int argc, char **argv)
            ret = process_line(line);
            
            if (ret == HELO) {
-              sprintf(buf, ":PID %lu\n", getpid());
+              sprintf(buf, ":PID %lu\n", (long unsigned) getpid());
               dbrelay_socket_send_string(s2, buf);
            } else if (ret == QUIT) {
               log_msg("disconnect.\n"); 
@@ -215,7 +220,7 @@ main(int argc, char **argv)
               log_msg("%s\n", request.sql);
               // don't timeout during query run
 	      if (request.connection_timeout) set_timer(DBRELAY_HARD_TIMEOUT);
-              results = (char *) dbrelay_exec_query(&conn, (char *) &request.sql_database, request.sql, request.flags);
+              results = (char *) dbrelay_exec_query(&conn, &request, request.sql);
               log_msg("addr = %lu\n", results);
               if (results == NULL) {
 	         log_msg("results are null\n"); 
@@ -271,6 +276,7 @@ process_line(char *line)
    char arg[100];
    int len = strlen(line);
    char flag_str[10];
+   char temp_str[30];
 
    if (receive_sql) {
       log_msg("sql mode\n");
@@ -313,6 +319,15 @@ process_line(char *line)
    else if (check_command(line, "SET FLAGS", flag_str, sizeof(flag_str))) {
       request.flags = (unsigned long) atol(flag_str);
       return OK;
+   }
+   else if (check_command(line, "SET OUTPUT", temp_str, sizeof(temp_str))) {
+      if (!strcmp(temp_str, "json-dict")) {
+         request.emitapi = &dbrelay_jsondict_api;
+      } else if (!strcmp(temp_str, "json-arr")) {
+         request.emitapi = &dbrelay_jsonarr_api;
+      } else if (!strcmp(temp_str, "csv")) {
+         request.emitapi = &dbrelay_csv_api;
+      }
    }
    else if (check_command(line, "SQL", arg, sizeof(arg))) {
       if (!strcmp(arg, "BEGIN")) {
@@ -359,7 +374,7 @@ void log_open()
    char logdir[256];
 
    sprintf(logdir, "%s/logs", DBRELAY_PREFIX);
-   sprintf(logfilename, "%s/connector%ld.log", logdir, getpid());
+   sprintf(logfilename, "%s/connector%ld.log", logdir, (long unsigned) getpid());
    logfile = fopen(logfilename, "w");
 
 #endif

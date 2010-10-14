@@ -49,7 +49,8 @@ sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS) $(sbin_PROGRAMS)
 am_connector_OBJECTS = db.$(OBJEXT) log.$(OBJEXT) json.$(OBJEXT) \
 	stringbuf.$(OBJEXT) shmem.$(OBJEXT) client.$(OBJEXT) \
-	socket.$(OBJEXT) connector.$(OBJEXT)
+	socket.$(OBJEXT) connector.$(OBJEXT) jsondict.$(OBJEXT) \
+	jsonarr.$(OBJEXT) csv.$(OBJEXT)
 connector_OBJECTS = $(am_connector_OBJECTS)
 @FREETDS_FALSE@@MYSQL_FALSE@@ODBC_TRUE@connector_DEPENDENCIES =  \
 @FREETDS_FALSE@@MYSQL_FALSE@@ODBC_TRUE@	odbc.o
@@ -57,7 +58,9 @@ connector_OBJECTS = $(am_connector_OBJECTS)
 @FREETDS_TRUE@connector_DEPENDENCIES = mssql.o
 am_dbrelay_OBJECTS = db.$(OBJEXT) log.$(OBJEXT) json.$(OBJEXT) \
 	stringbuf.$(OBJEXT) shmem.$(OBJEXT) client.$(OBJEXT) \
-	socket.$(OBJEXT) main.$(OBJEXT) admin.$(OBJEXT)
+	socket.$(OBJEXT) main.$(OBJEXT) admin.$(OBJEXT) \
+	status.$(OBJEXT) jsondict.$(OBJEXT) jsonarr.$(OBJEXT) \
+	csv.$(OBJEXT)
 dbrelay_OBJECTS = $(am_dbrelay_OBJECTS)
 @FREETDS_FALSE@@MYSQL_FALSE@@ODBC_TRUE@dbrelay_DEPENDENCIES = odbc.o
 @FREETDS_FALSE@@MYSQL_TRUE@dbrelay_DEPENDENCIES = mysql.o
@@ -169,8 +172,8 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AM_CPPFLAGS = -DCMDLINE @DB_INCS@
 AM_LDFLAGS = @DB_LIBS@ @DBRELAY_EXTRA_LIBS@
-dbrelay_SOURCES = dbrelay.h db.c log.c json.c stringbuf.c shmem.c client.c socket.c main.c admin.c libsybdb.a libtds.a
-connector_SOURCES = dbrelay.h db.c log.c json.c stringbuf.c shmem.c client.c socket.c connector.c 
+dbrelay_SOURCES = dbrelay.h db.c log.c json.c stringbuf.c shmem.c client.c socket.c main.c admin.c status.c output/jsondict.c output/jsonarr.c output/csv.c libsybdb.a libtds.a 
+connector_SOURCES = dbrelay.h db.c log.c json.c stringbuf.c shmem.c client.c socket.c connector.c output/jsondict.c output/jsonarr.c output/csv.c
 EXTRA_dbrelay_SOURCES = mssql.h mssql.c vmysql.h mysql.c
 @FREETDS_TRUE@dbrelay_LDADD = mssql.o @DB_STATICLIBS@ @LIBS@
 @MYSQL_TRUE@dbrelay_LDADD = mysql.o @DB_STATICLIBS@ @LIBS@
@@ -275,14 +278,18 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/admin.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/client.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/connector.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/csv.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/db.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/json.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/jsonarr.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/jsondict.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/log.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mssql.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mysql.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shmem.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/socket.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/status.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stringbuf.Po@am__quote@
 
 .c.o:
@@ -298,6 +305,48 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(COMPILE) -c `$(CYGPATH_W) '$<'`
+
+jsondict.o: output/jsondict.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT jsondict.o -MD -MP -MF $(DEPDIR)/jsondict.Tpo -c -o jsondict.o `test -f 'output/jsondict.c' || echo '$(srcdir)/'`output/jsondict.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/jsondict.Tpo $(DEPDIR)/jsondict.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='output/jsondict.c' object='jsondict.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o jsondict.o `test -f 'output/jsondict.c' || echo '$(srcdir)/'`output/jsondict.c
+
+jsondict.obj: output/jsondict.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT jsondict.obj -MD -MP -MF $(DEPDIR)/jsondict.Tpo -c -o jsondict.obj `if test -f 'output/jsondict.c'; then $(CYGPATH_W) 'output/jsondict.c'; else $(CYGPATH_W) '$(srcdir)/output/jsondict.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/jsondict.Tpo $(DEPDIR)/jsondict.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='output/jsondict.c' object='jsondict.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o jsondict.obj `if test -f 'output/jsondict.c'; then $(CYGPATH_W) 'output/jsondict.c'; else $(CYGPATH_W) '$(srcdir)/output/jsondict.c'; fi`
+
+jsonarr.o: output/jsonarr.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT jsonarr.o -MD -MP -MF $(DEPDIR)/jsonarr.Tpo -c -o jsonarr.o `test -f 'output/jsonarr.c' || echo '$(srcdir)/'`output/jsonarr.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/jsonarr.Tpo $(DEPDIR)/jsonarr.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='output/jsonarr.c' object='jsonarr.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o jsonarr.o `test -f 'output/jsonarr.c' || echo '$(srcdir)/'`output/jsonarr.c
+
+jsonarr.obj: output/jsonarr.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT jsonarr.obj -MD -MP -MF $(DEPDIR)/jsonarr.Tpo -c -o jsonarr.obj `if test -f 'output/jsonarr.c'; then $(CYGPATH_W) 'output/jsonarr.c'; else $(CYGPATH_W) '$(srcdir)/output/jsonarr.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/jsonarr.Tpo $(DEPDIR)/jsonarr.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='output/jsonarr.c' object='jsonarr.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o jsonarr.obj `if test -f 'output/jsonarr.c'; then $(CYGPATH_W) 'output/jsonarr.c'; else $(CYGPATH_W) '$(srcdir)/output/jsonarr.c'; fi`
+
+csv.o: output/csv.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT csv.o -MD -MP -MF $(DEPDIR)/csv.Tpo -c -o csv.o `test -f 'output/csv.c' || echo '$(srcdir)/'`output/csv.c
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/csv.Tpo $(DEPDIR)/csv.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='output/csv.c' object='csv.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o csv.o `test -f 'output/csv.c' || echo '$(srcdir)/'`output/csv.c
+
+csv.obj: output/csv.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT csv.obj -MD -MP -MF $(DEPDIR)/csv.Tpo -c -o csv.obj `if test -f 'output/csv.c'; then $(CYGPATH_W) 'output/csv.c'; else $(CYGPATH_W) '$(srcdir)/output/csv.c'; fi`
+@am__fastdepCC_TRUE@	mv -f $(DEPDIR)/csv.Tpo $(DEPDIR)/csv.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='output/csv.c' object='csv.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o csv.obj `if test -f 'output/csv.c'; then $(CYGPATH_W) 'output/csv.c'; else $(CYGPATH_W) '$(srcdir)/output/csv.c'; fi`
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \

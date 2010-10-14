@@ -36,8 +36,6 @@
 #include "stringbuf.h"
 #include "mssql.h"
 
-#define IS_SET(x) (x && strlen(x)>0)
-
 dbrelay_dbapi_t dbrelay_mssql_api = 
 {
    &dbrelay_mssql_init,

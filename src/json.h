@@ -73,6 +73,7 @@ void json_add_value(json_t *json, char *value);
 void json_add_key(json_t *json, char *key);
 void json_add_number(json_t *json, char *key, char *value);
 void json_add_string(json_t *json, char *key, char *value);
+void json_add_elem(json_t *json, char *value);
 void json_add_json(json_t *json, char *value);
 void json_add_null(json_t *json, char *key);
 void json_push(json_t *json, int node_type);

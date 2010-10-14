@@ -35,8 +35,6 @@
 #include "stringbuf.h"
 #include "vodbc.h"
 
-#define IS_SET(x) (x && strlen(x)>0)
-
 static void dbrelay_odbc_get_error(void *db);
 
 dbrelay_dbapi_t dbrelay_odbc_api = 

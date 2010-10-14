@@ -104,6 +104,13 @@
 #define NET_FLAGS 0
 #endif
 
+#define IS_SET(x) (x && strlen(x)>0)
+#define IS_EMPTY(x) (!x || strlen(x)==0)
+
+
+typedef struct dbrelay_dbapi_s dbrelay_dbapi_t;
+typedef struct dbrelay_emitapi_s dbrelay_emitapi_t;
+
 typedef struct {
    int status;
    char cmd[DBRELAY_NAME_SZ];
@@ -129,6 +136,9 @@ typedef struct {
    char js_callback[DBRELAY_NAME_SZ];
    char js_error[DBRELAY_NAME_SZ];
    void *nginx_request;
+   char output_style[DBRELAY_NAME_SZ];
+   dbrelay_dbapi_t *dbapi;
+   dbrelay_emitapi_t *emitapi;
 } dbrelay_request_t;
 
 typedef struct {
@@ -171,7 +181,7 @@ typedef char *(*dbrelay_db_error)(void *db);
 typedef char *(*dbrelay_db_catalogsql)(int dbcmd, char **params);
 typedef int (*dbrelay_db_isalive)(void *db);
 
-typedef struct {
+struct dbrelay_dbapi_s {
    dbrelay_db_init init;
    dbrelay_db_connect connect;
    dbrelay_db_close close;
@@ -194,7 +204,26 @@ typedef struct {
    dbrelay_db_catalogsql catalogsql;
    dbrelay_db_isalive isalive;
 
-} dbrelay_dbapi_t;
+};
+
+typedef void *(*dbrelay_emit_init)(dbrelay_request_t *request);
+typedef char *(*dbrelay_emit_finalize)(void *emitter, dbrelay_request_t *request);
+typedef void (*dbrelay_emit_restart)(void *emitter, dbrelay_request_t *request);
+typedef void (*dbrelay_emit_request)(void *emitter, dbrelay_request_t *request);
+typedef void (*dbrelay_emit_log)(void *emitter, dbrelay_request_t *request, char *error_string);
+typedef void (*dbrelay_emit_add_section)(void *emitter, char *ret);
+typedef char *(*dbrelay_emit_fill)(dbrelay_connection_t *conn, unsigned long flags);
+
+
+struct dbrelay_emitapi_s {
+   dbrelay_emit_init init;
+   dbrelay_emit_finalize finalize;
+   dbrelay_emit_restart restart;
+   dbrelay_emit_request request;
+   dbrelay_emit_log log;
+   dbrelay_emit_add_section add_section;
+   dbrelay_emit_fill fill;
+};
 
 u_char *dbrelay_db_run_query(dbrelay_request_t *request);
 u_char *dbrelay_db_status(dbrelay_request_t *request);
@@ -224,9 +253,11 @@ pid_t dbrelay_conn_initialize(int s, dbrelay_request_t *request);
 char *dbrelay_conn_send_request(int s, dbrelay_request_t *request, int *error);
 int dbrelay_conn_set_option(int s, char *option, char *value);
 pid_t dbrelay_conn_launch_connector(char *sock_path, dbrelay_request_t *request);
-u_char *dbrelay_exec_query(dbrelay_connection_t *conn, char *database, char *sql, unsigned long flags); 
+u_char *dbrelay_exec_query(dbrelay_connection_t *conn, dbrelay_request_t *request, char *sql); 
 void dbrelay_conn_kill(int s);
 void dbrelay_conn_close(int s);
+dbrelay_connection_t *dbrelay_time_get_shmem(dbrelay_request_t *request);
+void dbrelay_time_release_shmem(dbrelay_request_t *request, dbrelay_connection_t *connections);
 
 /* admin.c */
 u_char *dbrelay_db_cmd(dbrelay_request_t *request);

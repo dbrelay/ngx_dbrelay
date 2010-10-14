@@ -1,3 +1,6 @@
+#include "dbrelay.h"
+#include "../include/dbrelay_config.h"
+
 u_char *dbrelay_db_status(dbrelay_request_t *request)
 {
    dbrelay_connection_t *connections;

@@ -1,11 +1,61 @@
+#include "../dbrelay.h"
+
+void *dbrelay_jsondict_init(dbrelay_request_t *request);
+char *dbrelay_jsondict_finalize(void *emitter, dbrelay_request_t *request);
+void dbrelay_jsondict_restart(void *emitter, dbrelay_request_t *request);
+void dbrelay_jsondict_request(void *emitter, dbrelay_request_t *request);
+void dbrelay_jsondict_log(void *emitter, dbrelay_request_t *request, char *error_string);
+void dbrelay_jsondict_add_section(void *emitter, char *ret);
+char *dbrelay_jsonarr_fill(dbrelay_connection_t *conn, unsigned long flags);
+
+
+dbrelay_emitapi_t dbrelay_jsonarr_api = 
+{
+   &dbrelay_jsondict_init,
+   &dbrelay_jsondict_finalize,
+   &dbrelay_jsondict_restart,
+   &dbrelay_jsondict_request,
+   &dbrelay_jsondict_log,
+   &dbrelay_jsondict_add_section,
+   &dbrelay_jsonarr_fill
+};
+
+static void dbrelay_write_json_colinfo(json_t *json, void *db, int colnum, int *maxcolname);
+static void dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolname);
 static void dbrelay_write_json_column_csv(json_t *json, void *db, int colnum);
 static void dbrelay_write_json_column_std(json_t *json, void *db, int colnum, char *colname);
+static unsigned char dbrelay_is_unnamed_column(char *colname);
 
-int dbrelay_db_fill_data(json_t *json, dbrelay_connection_t *conn)
+extern dbrelay_dbapi_t *api;
+
+typedef struct {
+   json_t *json;
+} dbrelay_emit_t;
+
+static unsigned char dbrelay_is_unnamed_column(char *colname)
+{
+   /* For queries such as 'select 1'
+    * SQL Server uses a blank column name
+    * PostgreSQL and Vertica use "?column?"
+    */
+   if (!IS_SET(colname) || !strcmp(colname, "?column?")) 
+      return 1;
+   else
+      return 0;
+}
+char *
+dbrelay_jsonarr_fill(dbrelay_connection_t *conn, unsigned long flags)
 {
    int numcols, colnum;
    char tmp[256];
    int maxcolname;
+   char *ret;
+
+   json_t *json = json_new();
+
+   if (flags & DBRELAY_FLAG_PP) json_pretty_print(json, 1);
+   if (flags & DBRELAY_FLAG_EMBEDCSV) json_set_mode(json, DBRELAY_JSON_MODE_CSV);
+
 
    json_add_key(json, "data");
    json_new_array(json);
@@ -28,12 +78,12 @@ int dbrelay_db_fill_data(json_t *json, dbrelay_connection_t *conn)
 
         while (api->fetch_row(conn->db)) { 
            maxcolname = 0;
-	   if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_new_object(json);
+	   if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_new_array(json);
 	   for (colnum=1; colnum<=numcols; colnum++) {
               dbrelay_write_json_column(json, conn->db, colnum, &maxcolname);
-	      if (json_get_mode(json)==DBRELAY_JSON_MODE_CSV && colnum!=numcols) json_add_json(json, ",");
+	      if (colnum!=numcols) json_add_json(json, ",");
            }
-	   if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_end_object(json);
+	   if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_end_array(json);
            else json_add_json(json, "\\n");
         }
 
@@ -51,83 +101,11 @@ int dbrelay_db_fill_data(json_t *json, dbrelay_connection_t *conn)
    /* sprintf(error_string, "rc = %d", rc); */
    json_end_array(json);
 
-   return 0;
+   ret = json_to_string(json);
+   json_free(json);
+   return ret;
 }
-void 
-dbrelay_append_log_json(json_t *json, dbrelay_request_t *request, char *error_string)
-{
-   int i;
-   char tmp[20];
-
-   json_add_key(json, "log");
-   json_new_object(json);
-   if (request->flags & DBRELAY_FLAG_ECHOSQL) json_add_string(json, "sql", request->sql);
-   if (strlen(error_string)) {
-      json_add_string(json, "error", error_string);
-   }
-   i = 0;
-   while (request->params[i]) {
-      sprintf(tmp, "param%d", i);
-      json_add_string(json, tmp, request->params[i]);
-      i++;
-   }
-   json_end_object(json);
-
-   json_end_object(json);
-}
-/*
- * free the current json object in case of error midstream
- */
-void 
-dbrelay_db_restart_json(dbrelay_request_t *request, json_t **json)
-{
-   if (IS_SET(request->js_error)) {
-      // free json handle and start over
-      json_free(*json);
-      *json = json_new();
-      json_add_callback(*json, request->js_error);
-      json_new_object(*json);
-      dbrelay_append_request_json(*json, request);
-   }
-}
-/*
- * echo request parameters in json output
- */
-void 
-dbrelay_append_request_json(json_t *json, dbrelay_request_t *request)
-{
-   json_add_key(json, "request");
-   json_new_object(json);
-
-   if (IS_SET(request->query_tag)) 
-      json_add_string(json, "query_tag", request->query_tag);
-   json_add_string(json, "sql_server", request->sql_server);
-   json_add_string(json, "sql_user", request->sql_user);
-
-   if (IS_SET(request->sql_port)) 
-      json_add_string(json, "sql_port", request->sql_port);
-
-   json_add_string(json, "sql_database", request->sql_database);
-
-/*
- * do not return password back to client
-   if (IS_SET(request->sql_password)) 
-      json_add_string(json, "sql_password", request->sql_password);
-*/
-
-   json_end_object(json);
-
-}
-void
-dbrelay_write_json_log(json_t *json, dbrelay_request_t *request, char *error_string)
-{
-   	json_add_key(json, "log");
-   	json_new_object(json);
-   	if (request->sql) json_add_string(json, "sql", request->sql);
-    	json_add_string(json, "error", error_string);
-        json_end_object(json);
-        json_end_object(json);
-}
+static void
 dbrelay_write_json_colinfo(json_t *json, void *db, int colnum, int *maxcolname)
 {
    char tmp[256], *colname, tmpcolname[256];
@@ -164,7 +142,7 @@ dbrelay_write_json_colinfo(json_t *json, void *db, int colnum, int *maxcolname)
    }
    json_end_object(json);
 }
-void 
+static void 
 dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolname)
 {
    char *colname, tmpcolname[256];
@@ -215,9 +193,9 @@ dbrelay_write_json_column_std(json_t *json, void *db, int colnum, char *colname)
    if (api->colvalue(db, colnum, tmp)==NULL) {
       json_add_null(json, colname);
    } else if (api->is_quoted(db, colnum)) {
-      json_add_string(json, colname, tmp);
+      json_add_elem(json, tmp);
    } else {
-      json_add_number(json, colname, tmp);
+      json_add_json(json, tmp);
    }
    free(tmp);
 }

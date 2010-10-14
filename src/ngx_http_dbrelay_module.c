@@ -60,6 +60,10 @@ static void write_flag_values(dbrelay_request_t *request, char *value);
 static unsigned int accepts_application_json(ngx_http_request_t *r);
 static u_char *get_header_value(ngx_http_request_t *r, char *header_key);
 
+extern dbrelay_emitapi_t dbrelay_jsondict_api;
+extern dbrelay_emitapi_t dbrelay_jsonarr_api;
+extern dbrelay_emitapi_t dbrelay_csv_api;
+
 static ngx_command_t  ngx_http_dbrelay_commands[] = {
 
     { ngx_string("dbrelay"),
@@ -664,6 +668,15 @@ write_value(dbrelay_request_t *request, char *key, char *value)
       dbrelay_copy_string(request->js_callback, value, DBRELAY_NAME_SZ);
    } else if (!strcmp(key, "js_error")) {
       dbrelay_copy_string(request->js_error, value, DBRELAY_NAME_SZ);
+   } else if (!strcmp(key, "out")) {
+      dbrelay_copy_string(request->output_style, value, DBRELAY_NAME_SZ);
+      if (!strcmp(value, "json-dict")) {
+         request->emitapi = &dbrelay_jsondict_api;
+      } else if (!strcmp(value, "json-arr")) {
+         request->emitapi = &dbrelay_jsonarr_api;
+      } else if (!strcmp(value, "csv")) {
+         request->emitapi = &dbrelay_csv_api;
+      }
    }
    
    if (!noprint) {

@@ -127,6 +127,10 @@ dbrelay_conn_send_request(int s, dbrelay_request_t *request, int *error)
       return dbrelay_conn_socket_error(request);
    if (dbrelay_conn_set_option(s, "APPNAME", request->connection_name)<0) 
       return dbrelay_conn_socket_error(request);
+   if (request->output_style && strlen(request->output_style)) {
+      if (dbrelay_conn_set_option(s, "OUTPUT", request->output_style)<0) 
+          return dbrelay_conn_socket_error(request);
+   }
 
    if (dbrelay_socket_send_string(s, ":SQL BEGIN\n")<0) 
       return dbrelay_conn_socket_error(request);
