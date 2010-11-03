@@ -59,6 +59,7 @@ void ngx_http_dbrelay_exit_master(ngx_cycle_t *cycle);
 static void write_flag_values(dbrelay_request_t *request, char *value);
 static unsigned int accepts_application_json(ngx_http_request_t *r);
 static u_char *get_header_value(ngx_http_request_t *r, char *header_key);
+static ngx_int_t ngx_http_dbrelay_init_shm_zone(ngx_shm_zone_t *shm_zone, void *data);
 
 extern dbrelay_emitapi_t dbrelay_jsondict_api;
 extern dbrelay_emitapi_t dbrelay_jsonarr_api;
@@ -114,6 +115,16 @@ ngx_module_t  ngx_http_dbrelay_module = {
     NGX_MODULE_V1_PADDING
 };
 
+static ngx_shm_zone_t *ngx_http_dbrelay_shm_zone;
+
+u_char *
+ngx_http_dbrelay_get_shm_addr()
+{
+    if (!ngx_http_dbrelay_shm_zone) return NULL;
+    return ngx_http_dbrelay_shm_zone->shm.addr;
+}
+
+static ngx_shm_zone_t *ngx_http_dbrelay_shm_zone;
 ngx_int_t
 ngx_http_dbrelay_init_master(ngx_log_t *log)
 {
@@ -579,12 +590,36 @@ static char *
 ngx_http_dbrelay_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_http_core_loc_conf_t  *clcf;
+    ngx_str_t shm_name = ngx_string("dbrelay");
+    ngx_uint_t shm_size = DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t);
 
     clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
     clcf->handler = ngx_http_dbrelay_handler;
 
+    ngx_http_dbrelay_shm_zone = ngx_shared_memory_add(cf, &shm_name, shm_size, &ngx_http_dbrelay_module);
+    if (ngx_http_dbrelay_shm_zone == NULL) {
+        return NGX_CONF_ERROR;
+    }
+    ngx_http_dbrelay_shm_zone->init = ngx_http_dbrelay_init_shm_zone;
+
     return NGX_CONF_OK;
 }
+static ngx_int_t
+ngx_http_dbrelay_init_shm_zone(ngx_shm_zone_t *shm_zone, void *data)
+{
+    fprintf(stderr, "init_shm_zone called with %lu %lu\n", (unsigned long) shm_zone, (unsigned long) data);
+
+    if (data) {
+        shm_zone->data = data;
+        return NGX_OK;
+    }
+
+    shm_zone->data = shm_zone->shm.addr;
+    fprintf(stderr, "leaving init_shm_zone\n");
+
+    return NGX_OK;
+}
+
 
 static void *
 ngx_http_dbrelay_create_loc_conf(ngx_conf_t *cf)

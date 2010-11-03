@@ -229,7 +229,7 @@ pid_t dbrelay_conn_launch_connector(char *sock_path, dbrelay_request_t *request)
    pid_t child = 0;
    char connector_path[256]; 
    //char line[256]; 
-   FILE *connector;
+   //FILE *connector;
    struct stat statbuf;
 #ifndef CMDLINE
      ngx_http_request_t *r = request->nginx_request;
@@ -244,8 +244,9 @@ pid_t dbrelay_conn_launch_connector(char *sock_path, dbrelay_request_t *request)
      ngx_close_connection(r->connection);
 #endif
      execv(connector_path, argv);
+     perror("execv");
      //printf("cmd = %s\n", connector_path);
-     connector = popen(connector_path, "r");
+     //connector = popen(connector_path, "r");
      //printf("popen\n");
    } else {
      /* wait for connector to be ready, signaled by dead parent */

@@ -30,7 +30,6 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-bin_PROGRAMS = dbrelay$(EXEEXT)
 sbin_PROGRAMS = connector$(EXEEXT)
 subdir = src
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
@@ -43,28 +42,18 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/include/config.h
 CONFIG_CLEAN_FILES = config
-am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)"
-binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
+am__installdirs = "$(DESTDIR)$(sbindir)"
 sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
-PROGRAMS = $(bin_PROGRAMS) $(sbin_PROGRAMS)
+PROGRAMS = $(sbin_PROGRAMS)
 am_connector_OBJECTS = db.$(OBJEXT) log.$(OBJEXT) json.$(OBJEXT) \
-	stringbuf.$(OBJEXT) shmem.$(OBJEXT) client.$(OBJEXT) \
-	socket.$(OBJEXT) connector.$(OBJEXT) jsondict.$(OBJEXT) \
-	jsonarr.$(OBJEXT) csv.$(OBJEXT)
+	stringbuf.$(OBJEXT) client.$(OBJEXT) socket.$(OBJEXT) \
+	connector.$(OBJEXT) jsondict.$(OBJEXT) jsonarr.$(OBJEXT) \
+	csv.$(OBJEXT)
 connector_OBJECTS = $(am_connector_OBJECTS)
 @FREETDS_FALSE@@MYSQL_FALSE@@ODBC_TRUE@connector_DEPENDENCIES =  \
 @FREETDS_FALSE@@MYSQL_FALSE@@ODBC_TRUE@	odbc.o
 @FREETDS_FALSE@@MYSQL_TRUE@connector_DEPENDENCIES = mysql.o
 @FREETDS_TRUE@connector_DEPENDENCIES = mssql.o
-am_dbrelay_OBJECTS = db.$(OBJEXT) log.$(OBJEXT) json.$(OBJEXT) \
-	stringbuf.$(OBJEXT) shmem.$(OBJEXT) client.$(OBJEXT) \
-	socket.$(OBJEXT) main.$(OBJEXT) admin.$(OBJEXT) \
-	status.$(OBJEXT) jsondict.$(OBJEXT) jsonarr.$(OBJEXT) \
-	csv.$(OBJEXT)
-dbrelay_OBJECTS = $(am_dbrelay_OBJECTS)
-@FREETDS_FALSE@@MYSQL_FALSE@@ODBC_TRUE@dbrelay_DEPENDENCIES = odbc.o
-@FREETDS_FALSE@@MYSQL_TRUE@dbrelay_DEPENDENCIES = mysql.o
-@FREETDS_TRUE@dbrelay_DEPENDENCIES = mssql.o
 DEFAULT_INCLUDES = -I. -I$(top_builddir)/include@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -72,10 +61,8 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(connector_SOURCES) $(dbrelay_SOURCES) \
-	$(EXTRA_dbrelay_SOURCES)
-DIST_SOURCES = $(connector_SOURCES) $(dbrelay_SOURCES) \
-	$(EXTRA_dbrelay_SOURCES)
+SOURCES = $(connector_SOURCES)
+DIST_SOURCES = $(connector_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -173,8 +160,8 @@ top_srcdir = @top_srcdir@
 AM_CPPFLAGS = -DCMDLINE @DB_INCS@
 AM_LDFLAGS = @DB_LIBS@ @DBRELAY_EXTRA_LIBS@
 dbrelay_SOURCES = dbrelay.h db.c log.c json.c stringbuf.c shmem.c client.c socket.c main.c admin.c status.c output/jsondict.c output/jsonarr.c output/csv.c libsybdb.a libtds.a 
-connector_SOURCES = dbrelay.h db.c log.c json.c stringbuf.c shmem.c client.c socket.c connector.c output/jsondict.c output/jsonarr.c output/csv.c
-EXTRA_dbrelay_SOURCES = mssql.h mssql.c vmysql.h mysql.c
+connector_SOURCES = dbrelay.h db.c log.c json.c stringbuf.c client.c socket.c connector.c output/jsondict.c output/jsonarr.c output/csv.c
+EXTRA_dbrelay_SOURCES = mssql.h mssql.c vmysql.h mysql.c vodbc.h odbc.c
 @FREETDS_TRUE@dbrelay_LDADD = mssql.o @DB_STATICLIBS@ @LIBS@
 @MYSQL_TRUE@dbrelay_LDADD = mysql.o @DB_STATICLIBS@ @LIBS@
 @ODBC_TRUE@dbrelay_LDADD = odbc.o
@@ -216,29 +203,6 @@ $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 config: $(top_builddir)/config.status $(srcdir)/config.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
-install-binPROGRAMS: $(bin_PROGRAMS)
-	@$(NORMAL_INSTALL)
-	test -z "$(bindir)" || $(MKDIR_P) "$(DESTDIR)$(bindir)"
-	@list='$(bin_PROGRAMS)'; for p in $$list; do \
-	  p1=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
-	  if test -f $$p \
-	  ; then \
-	    f=`echo "$$p1" | sed 's,^.*/,,;$(transform);s/$$/$(EXEEXT)/'`; \
-	   echo " $(INSTALL_PROGRAM_ENV) $(binPROGRAMS_INSTALL) '$$p' '$(DESTDIR)$(bindir)/$$f'"; \
-	   $(INSTALL_PROGRAM_ENV) $(binPROGRAMS_INSTALL) "$$p" "$(DESTDIR)$(bindir)/$$f" || exit 1; \
-	  else :; fi; \
-	done
-
-uninstall-binPROGRAMS:
-	@$(NORMAL_UNINSTALL)
-	@list='$(bin_PROGRAMS)'; for p in $$list; do \
-	  f=`echo "$$p" | sed 's,^.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/'`; \
-	  echo " rm -f '$(DESTDIR)$(bindir)/$$f'"; \
-	  rm -f "$(DESTDIR)$(bindir)/$$f"; \
-	done
-
-clean-binPROGRAMS:
-	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
 install-sbinPROGRAMS: $(sbin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	test -z "$(sbindir)" || $(MKDIR_P) "$(DESTDIR)$(sbindir)"
@@ -265,9 +229,6 @@ clean-sbinPROGRAMS:
 connector$(EXEEXT): $(connector_OBJECTS) $(connector_DEPENDENCIES) 
 	@rm -f connector$(EXEEXT)
 	$(LINK) $(connector_OBJECTS) $(connector_LDADD) $(LIBS)
-dbrelay$(EXEEXT): $(dbrelay_OBJECTS) $(dbrelay_DEPENDENCIES) 
-	@rm -f dbrelay$(EXEEXT)
-	$(LINK) $(dbrelay_OBJECTS) $(dbrelay_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -275,7 +236,6 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/admin.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/client.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/connector.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/csv.Po@am__quote@
@@ -284,12 +244,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/jsonarr.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/jsondict.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/log.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/main.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mssql.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mysql.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/shmem.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/socket.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/status.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stringbuf.Po@am__quote@
 
 .c.o:
@@ -426,7 +381,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(PROGRAMS)
 installdirs:
-	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)"; do \
+	for dir in "$(DESTDIR)$(sbindir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -455,8 +410,7 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-binPROGRAMS clean-generic clean-sbinPROGRAMS \
-	mostlyclean-am
+clean-am: clean-generic clean-sbinPROGRAMS mostlyclean-am
 
 distclean: distclean-am
 	-rm -rf ./$(DEPDIR)
@@ -478,7 +432,7 @@ install-data-am:
 
 install-dvi: install-dvi-am
 
-install-exec-am: install-binPROGRAMS install-sbinPROGRAMS
+install-exec-am: install-sbinPROGRAMS
 
 install-html: install-html-am
 
@@ -509,23 +463,22 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-binPROGRAMS uninstall-sbinPROGRAMS
+uninstall-am: uninstall-sbinPROGRAMS
 
 .MAKE: install-am install-strip
 
-.PHONY: CTAGS GTAGS all all-am check check-am clean clean-binPROGRAMS \
-	clean-generic clean-sbinPROGRAMS ctags distclean \
-	distclean-compile distclean-generic distclean-tags distdir dvi \
-	dvi-am html html-am info info-am install install-am \
-	install-binPROGRAMS install-data install-data-am install-dvi \
-	install-dvi-am install-exec install-exec-am install-html \
-	install-html-am install-info install-info-am install-man \
-	install-pdf install-pdf-am install-ps install-ps-am \
-	install-sbinPROGRAMS install-strip installcheck \
-	installcheck-am installdirs maintainer-clean \
+.PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
+	clean-sbinPROGRAMS ctags distclean distclean-compile \
+	distclean-generic distclean-tags distdir dvi dvi-am html \
+	html-am info info-am install install-am install-data \
+	install-data-am install-dvi install-dvi-am install-exec \
+	install-exec-am install-html install-html-am install-info \
+	install-info-am install-man install-pdf install-pdf-am \
+	install-ps install-ps-am install-sbinPROGRAMS install-strip \
+	installcheck installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic pdf pdf-am ps ps-am tags uninstall \
-	uninstall-am uninstall-binPROGRAMS uninstall-sbinPROGRAMS
+	uninstall-am uninstall-sbinPROGRAMS
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

@@ -61,12 +61,13 @@ key_t dbrelay_get_ipc_key()
 void dbrelay_create_shmem()
 {
    key_t key;
-   int shmid;
+   //int shmid;
    int semid;
-   dbrelay_connection_t *connections;
+   //dbrelay_connection_t *connections;
    union semun sem;
-   void * buf;
+   //void * buf;
    
+#if 0
    key = dbrelay_get_ipc_key();
    buf = malloc(DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t));
    if (buf==NULL) perror("malloc");
@@ -75,9 +76,10 @@ void dbrelay_create_shmem()
    connections = (dbrelay_connection_t *) shmat(shmid, NULL, 0);
    memset(connections, '\0', DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t));
    shmdt(connections);
+#endif
 
    key = dbrelay_get_ipc_key();
-   semid = semget(key, 1, IPC_CREAT | 0600);
+   semid = semget(key, 1, IPC_CREAT | 0666);
    if (semid==-1) perror("semget");
    sem.val = 1;
    if (semctl(semid, 0, SETVAL, sem)==-1)
@@ -118,37 +120,42 @@ void dbrelay_unlock_shmem()
 }
 dbrelay_connection_t *dbrelay_get_shmem()
 {
-   key_t key;
-   int shmid;
+   //key_t key;
+   //int shmid;
    dbrelay_connection_t *connections;
 
    dbrelay_lock_shmem();
 
+/*
    key = dbrelay_get_ipc_key();
    shmid = shmget(key, DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t), 0600);
    if (shmid==-1) return NULL;
+*/
 
-   connections = (dbrelay_connection_t *) shmat(shmid, NULL, 0);
+   //connections = (dbrelay_connection_t *) shmat(shmid, NULL, 0);
+   connections = (dbrelay_connection_t *) ngx_http_dbrelay_get_shm_addr();
 
    return connections;
 }
 void dbrelay_release_shmem(dbrelay_connection_t *connections)
 {
-   shmdt(connections);
+   //shmdt(connections);
 
    dbrelay_unlock_shmem();
 }
 void dbrelay_destroy_shmem()
 {
    key_t key;
-   int shmid;
+   //int shmid;
    int semid;
    
+/*
    key = dbrelay_get_ipc_key();
    shmid = shmget(key, DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t), IPC_CREAT | 0600);
    shmctl(shmid, IPC_RMID, NULL);
+*/
 
    key = dbrelay_get_ipc_key();
-   semid = semget(key, 1, IPC_CREAT | 0600);
+   semid = semget(key, 1, IPC_CREAT | 0666);
    semctl(semid, 0, IPC_RMID);
 }
