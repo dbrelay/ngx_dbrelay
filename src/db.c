@@ -361,6 +361,8 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
    /* FIX ME */
    char error_string[500];
    u_char *ret;
+   char *results;
+   char *messages;
    dbrelay_connection_t *conn;
    dbrelay_connection_t *connections;
    int s = 0;
@@ -383,7 +385,7 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
    if (!dbrelay_check_request(request)) {
         dbrelay_log_info(request, "check_request failed.");
 	request->emitapi->restart(emitter, request);
-        request->emitapi->log(emitter, request, "Not all required parameters submitted.");
+        request->emitapi->log(emitter, request, "Not all required parameters submitted.", 1);
 
         return (u_char *) request->emitapi->finalize(emitter, request);
    }
@@ -393,21 +395,19 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
    conn = dbrelay_wait_for_connection(request, &s);
    if (conn == NULL) {
       request->emitapi->restart(emitter, request);
-      request->emitapi->log(emitter, request, "Couldn't allocate new connection");
+      request->emitapi->log(emitter, request, "Couldn't allocate new connection", 1);
       return (u_char *) request->emitapi->finalize(emitter, request);
    }
    slot = conn->slot;
 
    dbrelay_log_debug(request, "Allocated connection for query");
 
-   error_string[0]='\0';
-
    if (IS_SET(request->connection_name)) 
    {
       if ((helper_pid = dbrelay_conn_initialize(s, request))==-1) {
          strcpy(error_string, "Couldn't initialize connector");
          request->emitapi->restart(emitter, request);
-         request->emitapi->log(emitter, request, "Couldn't initialize connector");
+         request->emitapi->log(emitter, request, "Couldn't initialize connector", 1);
          free(newsql);
          return (u_char *) request->emitapi->finalize(emitter, request);
       } else if (helper_pid) {
@@ -417,7 +417,7 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
          dbrelay_time_release_shmem(request, connections);
       } // else we didn't get a pid but didn't fail, shouldn't happen
       dbrelay_log_info(request, "sending request");
-      ret = (u_char *) dbrelay_conn_send_request(s, request, &have_error);
+      have_error = dbrelay_conn_send_request(s, request, &results, &messages);
       dbrelay_log_debug(request, "back");
       // internal error
       if (have_error==2) {
@@ -425,16 +425,26 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
          // socket error of some sort, kill the connector to be safe and let it restart on its own
          dbrelay_conn_kill(s);
       }
-      if (have_error) {
-         request->emitapi->restart(emitter, request);
-         dbrelay_log_debug(request, "have error %s\n", ret);
-         dbrelay_copy_string(error_string, (char *)ret, sizeof(error_string));
-      } else if (!IS_SET((char *)ret)) {
-         dbrelay_log_warn(request, "Connector returned no information");
-         dbrelay_log_info(request, "Query was: %s", newsql);
+      if (!IS_SET(results)) {
+        dbrelay_log_debug(request, "received no results");
+        if (IS_SET(messages)) {
+           request->emitapi->restart(emitter, request);
+           dbrelay_log_debug(request, "have error %s\n", messages);
+           dbrelay_copy_string(error_string, messages, sizeof(error_string));
+           have_error = 1;
+           free(messages);
+        } else {
+           dbrelay_log_warn(request, "Connector returned no information");
+           dbrelay_log_info(request, "Query was: %s", newsql);
+        }
       } else {
-         request->emitapi->add_section(emitter, (char *)ret);
-         free(ret);
+         dbrelay_log_debug(request, "received results");
+         request->emitapi->add_section(emitter, results);
+         if (IS_SET(messages)) {
+           dbrelay_copy_string(error_string, messages, sizeof(error_string));
+           have_error = 0;
+         }
+         free(results);
       }
       dbrelay_log_debug(request, "closing");
       dbrelay_conn_close(s);
@@ -458,6 +468,11 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
    	   dbrelay_log_debug(request, "error");
            //strcpy(error_string, request->error_message);
            strcpy(error_string, api->error(conn->db));
+           have_error = 1;
+        } else if (api->error(conn->db)) {
+           request->emitapi->add_section(emitter, (char *)ret);
+           strcpy(error_string, api->error(conn->db));
+           free(ret);
         } else {
            request->emitapi->add_section(emitter, (char *)ret);
            free(ret);
@@ -470,7 +485,7 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
    free(newsql);
 
    dbrelay_log_debug(request, "error = %s\n", error_string);
-   request->emitapi->log(emitter, request, error_string);
+   request->emitapi->log(emitter, request, error_string, have_error);
 
    ret = (u_char *) request->emitapi->finalize(emitter, request);
    dbrelay_log_debug(request, "Query completed, freeing connection.");

@@ -4,7 +4,7 @@ void *dbrelay_jsondict_init(dbrelay_request_t *request);
 char *dbrelay_jsondict_finalize(void *emitter, dbrelay_request_t *request);
 void dbrelay_jsondict_restart(void *emitter, dbrelay_request_t *request);
 void dbrelay_jsondict_request(void *emitter, dbrelay_request_t *request);
-void dbrelay_jsondict_log(void *emitter, dbrelay_request_t *request, char *error_string);
+void dbrelay_jsondict_log(void *emitter, dbrelay_request_t *request, char *error_string, int error);
 void dbrelay_jsondict_add_section(void *emitter, char *ret);
 char *dbrelay_jsonarr_fill(dbrelay_connection_t *conn, unsigned long flags);
 

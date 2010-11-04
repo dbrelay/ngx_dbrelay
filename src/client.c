@@ -49,7 +49,7 @@
 
 #define DEBUG 0
 
-char *dbrelay_conn_socket_error(dbrelay_request_t *request);
+int dbrelay_conn_socket_error(dbrelay_request_t *request, char **error_out);
 
 void
 dbrelay_conn_kill(int s)
@@ -91,11 +91,11 @@ dbrelay_conn_initialize(int s, dbrelay_request_t *request)
    childpid = (pid_t) atoi(&out_buf[5]);
    return childpid;
 }
-char *
-dbrelay_conn_send_request(int s, dbrelay_request_t *request, int *error)
+int
+dbrelay_conn_send_request(int s, dbrelay_request_t *request, char **results_out, char **errors_out)
 {
    stringbuf_t *sb_rslt = NULL;
-   char *json_output;
+   stringbuf_t *sb_error = NULL;
    int results = 0;
    int errors = 0;
    char out_buf[DBRELAY_SOCKET_BUFSIZE];
@@ -104,50 +104,49 @@ dbrelay_conn_send_request(int s, dbrelay_request_t *request, int *error)
    char tmp[20];
    int t;
 
-   *error = 2;
+   results_out[0]='\0';
+   errors_out[0]='\0';
 
    dbrelay_log_debug(request, "setting options");
    if (dbrelay_conn_set_option(s, "SERVER", request->sql_server)<0) 
-      return dbrelay_conn_socket_error(request);
+      return dbrelay_conn_socket_error(request, errors_out);
    dbrelay_log_debug(request, "SERVER sent");
-   if (dbrelay_conn_set_option(s, "DATABASE", request->sql_database)<0) 
-      return dbrelay_conn_socket_error(request);
-   if (dbrelay_conn_set_option(s, "USER", request->sql_user)<0) 
-      return dbrelay_conn_socket_error(request);
+   if (dbrelay_conn_set_option(s, "DATABASE", request->sql_database)<0)  
+      return dbrelay_conn_socket_error(request, errors_out);
+   if (dbrelay_conn_set_option(s, "USER", request->sql_user)<0)  
+      return dbrelay_conn_socket_error(request, errors_out);
    if (request->sql_password && strlen(request->sql_password)) {
-      if (dbrelay_conn_set_option(s, "PASSWORD", request->sql_password)<0)
-         return dbrelay_conn_socket_error(request);
+      if (dbrelay_conn_set_option(s, "PASSWORD", request->sql_password)<0) 
+         return dbrelay_conn_socket_error(request, errors_out);
    }
    sprintf(tmp, "%ld", request->connection_timeout);
    dbrelay_log_info(request, "timeout %s", tmp);
-   if (dbrelay_conn_set_option(s, "TIMEOUT", tmp)<0) 
-      return dbrelay_conn_socket_error(request);
+   if (dbrelay_conn_set_option(s, "TIMEOUT", tmp)<0)  
+      return dbrelay_conn_socket_error(request, errors_out);
    sprintf(tmp, "%lu", request->flags);
-   if (dbrelay_conn_set_option(s, "FLAGS", tmp)<0) 
-      return dbrelay_conn_socket_error(request);
-   if (dbrelay_conn_set_option(s, "APPNAME", request->connection_name)<0) 
-      return dbrelay_conn_socket_error(request);
+   if (dbrelay_conn_set_option(s, "FLAGS", tmp)<0)  
+      return dbrelay_conn_socket_error(request, errors_out);
+   if (dbrelay_conn_set_option(s, "APPNAME", request->connection_name)<0)  
+      return dbrelay_conn_socket_error(request, errors_out);
    if (request->output_style && strlen(request->output_style)) {
-      if (dbrelay_conn_set_option(s, "OUTPUT", request->output_style)<0) 
-          return dbrelay_conn_socket_error(request);
+      if (dbrelay_conn_set_option(s, "OUTPUT", request->output_style)<0)  
+          return dbrelay_conn_socket_error(request, errors_out);
    }
 
    if (dbrelay_socket_send_string(s, ":SQL BEGIN\n")<0) 
-      return dbrelay_conn_socket_error(request);
+      return dbrelay_conn_socket_error(request, errors_out);
    if (dbrelay_socket_send_string(s, request->sql)<0) 
-      return dbrelay_conn_socket_error(request);
+      return dbrelay_conn_socket_error(request, errors_out);
    if (dbrelay_socket_send_string(s, "\n")<0) 
-      return dbrelay_conn_socket_error(request);
+      return dbrelay_conn_socket_error(request, errors_out);
    if (dbrelay_socket_send_string(s, ":SQL END\n")<0) 
-      return dbrelay_conn_socket_error(request);
-   *error = 0;
+      return dbrelay_conn_socket_error(request, errors_out);
 
    dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf, 0);
 
-   if (dbrelay_socket_send_string(s, ":RUN\n")<0)
-      return dbrelay_conn_socket_error(request);
+   if (dbrelay_socket_send_string(s, ":RUN\n")<0) 
+      return dbrelay_conn_socket_error(request, errors_out);
 
-   sb_rslt = sb_new(NULL);
    dbrelay_log_debug(request, "receiving results");
    while ((t=dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf, 0))>0) {
       if (out_buf[strlen(out_buf)-1]=='\n') out_buf[strlen(out_buf)-1]='\0';
@@ -160,46 +159,58 @@ dbrelay_conn_send_request(int s, dbrelay_request_t *request, int *error)
       if (!strcmp(out_buf, ":RESULTS END")) results = 0;
       if (!strcmp(out_buf, ":ERROR END")) errors = 0;
       //printf("%s\n", out_buf);
-      if (results || errors) {
+      if (results) {
 	 sb_append(sb_rslt, out_buf);
+      }
+      if (errors) {
+	 sb_append(sb_error, out_buf);
 	 //sb_append(sb_rslt, "\n");
       }
       if (!strcmp(out_buf, ":RESULTS BEGIN")) {
+         sb_rslt = sb_new(NULL);
 	 dbrelay_log_debug(request, "results begun\n");
 	 results = 1;
       }
       if (!strcmp(out_buf, ":ERROR BEGIN")) {
+         sb_error = sb_new(NULL);
+	 dbrelay_log_debug(request, "results begun\n");
 	 dbrelay_log_debug(request, "have errors\n");
-	 *error = 1;
 	 errors = 1;
       }
    }
    if (t==-1) {
       // broken socket
-      *error=2;
-      sb_free(sb_rslt);
-             return dbrelay_conn_socket_error(request);
+      if (sb_rslt) sb_free(sb_rslt);
+      if (sb_error) sb_free(sb_error);
+      return dbrelay_conn_socket_error(request, errors_out);
    }
    dbrelay_log_debug(request, "finished receiving results");
-   json_output = sb_to_char(sb_rslt);
-   dbrelay_log_debug(request, "receiving results");
-   sb_free(sb_rslt);
-   return json_output;
+   if (sb_rslt) {
+      *results_out = sb_to_char(sb_rslt);
+      dbrelay_log_debug(request, "results = %s", *results_out);
+      dbrelay_log_debug(request, "receiving results");
+      sb_free(sb_rslt);
+   }
+   if (sb_error) {
+      *errors_out = sb_to_char(sb_error);
+      dbrelay_log_debug(request, "error = %s", *errors_out);
+      sb_free(sb_error);
+   }
+   return 0;
 }
-char *
-dbrelay_conn_socket_error(dbrelay_request_t *request)
+int
+dbrelay_conn_socket_error(dbrelay_request_t *request, char **error_out)
 {
    stringbuf_t *sb_rslt2;
-   char *json_output;
 
    sb_rslt2=sb_new(NULL);
    sb_append(sb_rslt2, "Internal Error: connector terminated connection unexpectedly.");
-   json_output = sb_to_char(sb_rslt2);
+   *error_out = sb_to_char(sb_rslt2);
    sb_free(sb_rslt2);
    dbrelay_log_error(request, "Connector terminated connection unexpectedly.");
 
    /* XXX - FIX ME, should we kill the connector at this point? */
-   return json_output;
+   return 2;
 }
 
 int

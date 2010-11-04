@@ -4,7 +4,7 @@ void *dbrelay_jsondict_init(dbrelay_request_t *request);
 char *dbrelay_jsondict_finalize(void *emitter, dbrelay_request_t *request);
 void dbrelay_jsondict_restart(void *emitter, dbrelay_request_t *request);
 void dbrelay_jsondict_request(void *emitter, dbrelay_request_t *request);
-void dbrelay_jsondict_log(void *emitter, dbrelay_request_t *request, char *error_string);
+void dbrelay_jsondict_log(void *emitter, dbrelay_request_t *request, char *error_string, int error);
 void dbrelay_jsondict_add_section(void *emitter, char *ret);
 char *dbrelay_jsondict_fill(dbrelay_connection_t *conn, unsigned long flags);
 
@@ -25,7 +25,7 @@ static void dbrelay_write_json_column(json_t *json, void *db, int colnum, int *m
 static void dbrelay_write_json_column_csv(json_t *json, void *db, int colnum);
 static void dbrelay_write_json_column_std(json_t *json, void *db, int colnum, char *colname);
 static unsigned char dbrelay_is_unnamed_column(char *colname);
-static void dbrelay_emit_log_json(json_t *json, dbrelay_request_t *request, char *error_string);
+static void dbrelay_emit_log_json(json_t *json, dbrelay_request_t *request, char *error_string, int error);
 
 extern dbrelay_dbapi_t *api;
 
@@ -197,13 +197,13 @@ dbrelay_jsondict_request(void *e, dbrelay_request_t *request)
 
 }
 void 
-dbrelay_jsondict_log(void *e, dbrelay_request_t *request, char *error_string)
+dbrelay_jsondict_log(void *e, dbrelay_request_t *request, char *error_string, int error)
 {
    dbrelay_emit_t *emitter = (dbrelay_emit_t *) e;
-   dbrelay_emit_log_json(emitter->json, request, error_string);
+   dbrelay_emit_log_json(emitter->json, request, error_string, error);
 }
 static void 
-dbrelay_emit_log_json(json_t *json, dbrelay_request_t *request, char *error_string)
+dbrelay_emit_log_json(json_t *json, dbrelay_request_t *request, char *error_string, int error)
 {
    int i;
    char tmp[20];
@@ -212,7 +212,11 @@ dbrelay_emit_log_json(json_t *json, dbrelay_request_t *request, char *error_stri
    json_new_object(json);
    if (request->flags & DBRELAY_FLAG_ECHOSQL) json_add_string(json, "sql", request->sql);
    if (strlen(error_string)) {
-      json_add_string(json, "error", error_string);
+      if (error) {
+       	json_add_string(json, "error", error_string);
+      } else {
+         json_add_string(json, "messages", error_string);
+      }
    }
    i = 0;
    while (request->params[i]) {

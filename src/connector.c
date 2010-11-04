@@ -229,6 +229,19 @@ main(int argc, char **argv)
                  dbrelay_socket_send_string(s2, api->error(conn.db));
                  dbrelay_socket_send_string(s2, "\n");
                  dbrelay_socket_send_string(s2, ":ERROR END\n");
+              } else if (api->error(conn.db)) {
+                 log_msg("sending results\n"); 
+                 dbrelay_socket_send_string(s2, ":RESULTS BEGIN\n");
+                 log_msg("%s\n", results);
+                 log_msg("len = %d\n", strlen(results));
+                 dbrelay_socket_send_string(s2, results);
+                 dbrelay_socket_send_string(s2, "\n");
+                 dbrelay_socket_send_string(s2, ":RESULTS END\n");
+                 log_msg("error is %s\n", api->error(conn.db));
+                 dbrelay_socket_send_string(s2, ":ERROR BEGIN\n");
+                 dbrelay_socket_send_string(s2, api->error(conn.db));
+                 dbrelay_socket_send_string(s2, "\n");
+                 dbrelay_socket_send_string(s2, ":ERROR END\n");
               } else {
                  log_msg("sending results\n"); 
                  dbrelay_socket_send_string(s2, ":RESULTS BEGIN\n");
