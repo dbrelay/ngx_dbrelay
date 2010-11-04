@@ -128,6 +128,13 @@ main(int argc, char **argv)
    pid_t pid;
    int tries = 0;
    struct timeval now;
+   struct sockaddr_un remote;
+#if HAVE_SO_NOSIGPIPE
+   int on = 1;
+#endif
+   struct timeval tv;
+   fd_set fds[3];
+   fd_set *readfds = NULL, *writefds = NULL, *errorfds = NULL;
 
    if (argc>1) {
       sock_path = argv[1];
@@ -159,12 +166,35 @@ main(int argc, char **argv)
       tries = 0;
       do {
          log_msg("waiting for new connection\n");
-         s2 = dbrelay_socket_accept(s);
+
+         readfds = &fds[0];
+         FD_ZERO(readfds);
+         FD_SET(s, readfds);
+
+         tv.tv_sec = 30; // wait timeout seconds.
+         tv.tv_usec = 0;
+
+         log_msg("selecting for read\n");
+         ret = select(s + 1, readfds, writefds, errorfds, (timeout) ? &tv : NULL);
+         log_msg("selecting returned %d\n", ret);
+
+         if (ret<=0) 
+             s2 = -1;
+         else {
+             log_msg("accepting connection\n");
+             len = sizeof(struct sockaddr_un);
+             s2 = accept(s, (struct sockaddr *) &remote, &len);
+             log_msg("descriptor is %d\n", s2);
+         }
+         //s2 = dbrelay_socket_accept(s);
          if (s2==-1) {
             log_msg("socket accept had error\n");
             tries++;
             if (tries>3) { exit(0); }
          }
+#if HAVE_SO_NOSIGPIPE
+      setsockopt(s2, SOL_SOCKET, SO_NOSIGPIPE, (void *)&on, sizeof(on));
+#endif
          gettimeofday(&now, NULL);
          if (request.connection_timeout && now.tv_sec - last_accessed.tv_sec > request.connection_timeout) {
             log_msg("manual timeout occurred\n");
