@@ -135,19 +135,16 @@ main(int argc, char **argv)
       sock_path = SOCK_PATH;
    }
 
-   set_timer(60); // set a default timer in case nobody attaches
-
-   api->init();
-
    s = dbrelay_socket_create(sock_path);
 
    // fork and die so parent knows we are ready
    if (!GDB && (pid=fork())) {
-      //fprintf(stdout, ":PID %lu\n", pid);
       exit(0);
    }
-   // allow control to return to the (grand)parent process
-   //fclose(stdout);
+
+   set_timer(60); // set a default timer in case nobody attaches
+
+   api->init();
 
    log_open();
    log_msg("Using socket path %s\n", sock_path);
