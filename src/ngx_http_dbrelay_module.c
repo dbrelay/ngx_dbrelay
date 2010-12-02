@@ -116,6 +116,7 @@ ngx_module_t  ngx_http_dbrelay_module = {
 };
 
 static ngx_shm_zone_t *ngx_http_dbrelay_shm_zone;
+static ngx_uint_t shm_size = DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t);
 
 u_char *
 ngx_http_dbrelay_get_shm_addr()
@@ -591,7 +592,6 @@ ngx_http_dbrelay_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_http_core_loc_conf_t  *clcf;
     ngx_str_t shm_name = ngx_string("dbrelay");
-    ngx_uint_t shm_size = DBRELAY_MAX_CONN * sizeof(dbrelay_connection_t);
 
     clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
     clcf->handler = ngx_http_dbrelay_handler;
@@ -614,6 +614,7 @@ ngx_http_dbrelay_init_shm_zone(ngx_shm_zone_t *shm_zone, void *data)
         return NGX_OK;
     }
 
+    memset(shm_zone->shm.addr, 0, shm_size);
     shm_zone->data = shm_zone->shm.addr;
     fprintf(stderr, "leaving init_shm_zone\n");
 
@@ -678,6 +679,10 @@ write_value(dbrelay_request_t *request, char *key, char *value)
    } else if (!strcmp(key, "sql_password")) {
       dbrelay_copy_string(request->sql_password, value, DBRELAY_OBJ_SZ);
       noprint = 1;
+#if 1
+   } else if (!strcmp(key, "sock_path")) {
+      dbrelay_copy_string(request->sock_path, value, DBRELAY_NAME_SZ);
+#endif
    } else if (!strcmp(key, "connection_name")) {
       dbrelay_copy_string(request->connection_name, value, DBRELAY_NAME_SZ);
    } else if (!strcmp(key, "connection_timeout")) {
