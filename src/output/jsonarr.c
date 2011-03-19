@@ -191,7 +191,7 @@ dbrelay_write_json_column_std(json_t *json, void *db, int colnum, char *colname)
    tmp = (char *) malloc(colsize > 256 ? colsize : 256);
 
    if (api->colvalue(db, colnum, tmp)==NULL) {
-      json_add_null(json, colname);
+      json_add_json(json, "null");
    } else if (api->is_quoted(db, colnum)) {
       json_add_elem(json, tmp);
    } else {
