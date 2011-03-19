@@ -103,6 +103,7 @@ dbrelay_conn_send_request(int s, dbrelay_request_t *request, char **results_out,
    int in_ptr = -1;
    char tmp[20];
    int t;
+   int defer_newline = 0;
 
    results_out[0]='\0';
    errors_out[0]='\0';
@@ -149,14 +150,26 @@ dbrelay_conn_send_request(int s, dbrelay_request_t *request, char **results_out,
 
    dbrelay_log_debug(request, "receiving results");
    while ((t=dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf, 0))>0) {
-      if (out_buf[strlen(out_buf)-1]=='\n') out_buf[strlen(out_buf)-1]='\0';
+
+      if (results && defer_newline) sb_append(sb_rslt, "\n");
+
+      if (out_buf[strlen(out_buf)-1]=='\n') {
+         if (results) defer_newline = 1;
+         out_buf[strlen(out_buf)-1]='\0';
+      } else {
+         defer_newline = 0;
+      }
+
       //dbrelay_log_debug(request, "result line = %s", out_buf);
       if (!strcmp(out_buf, ":BYE") ||
 	 !strcmp(out_buf, ":OK") ||
 	 !strcmp(out_buf, ":ERR")) break;
       //dbrelay_log_debug(request, "in %s", in_buf);
       //dbrelay_log_debug(request, "out %s", out_buf);
-      if (!strcmp(out_buf, ":RESULTS END")) results = 0;
+      if (!strcmp(out_buf, ":RESULTS END")) {
+         defer_newline = 0;
+         results = 0;
+      }
       if (!strcmp(out_buf, ":ERROR END")) errors = 0;
       //printf("%s\n", out_buf);
       if (results) {
