@@ -121,9 +121,9 @@ int dbrelay_odbc_is_quoted(void *db, int colnum)
       case SQL_WCHAR:
       case SQL_WVARCHAR:
       case SQL_WLONGVARCHAR:
-      case SQL_DATE:
-      case SQL_TIME:
-      case SQL_TIMESTAMP:
+      case SQL_TYPE_DATE:
+      case SQL_TYPE_TIME:
+      case SQL_TYPE_TIMESTAMP:
          return 1;
          break;
       case SQL_DECIMAL:
@@ -161,13 +161,13 @@ char *dbrelay_odbc_get_sqltype_string(char *dest, int coltype, int collen)
       case SQL_WLONGVARCHAR:
          sprintf(dest, "wvarchar");
          break;
-      case SQL_DATE:
+      case SQL_TYPE_DATE:
          sprintf(dest, "date");
          break;
-      case SQL_TIME:
+      case SQL_TYPE_TIME:
          sprintf(dest, "time");
          break;
-      case SQL_TIMESTAMP:
+      case SQL_TYPE_TIMESTAMP:
          sprintf(dest, "timestamp");
          break;
       case SQL_DECIMAL:
