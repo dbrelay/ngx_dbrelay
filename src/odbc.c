@@ -249,10 +249,13 @@ int dbrelay_odbc_exec(void *db, char *sql)
    odbc_db_t *odbc = (odbc_db_t *) db;
    SQLRETURN ret;
 
+   odbc->error_message[0]='\0';
    SQLAllocHandle(SQL_HANDLE_STMT, odbc->dbc, &odbc->stmt);
 
    ret = SQLExecDirect(odbc->stmt, (SQLCHAR *) sql, SQL_NTS);
    odbc->querying = 1;
+
+   if (ret==SQL_SUCCESS_WITH_INFO) dbrelay_odbc_get_error(db);
 
    if (SQL_SUCCEEDED(ret)) return TRUE;
    else {
@@ -367,8 +370,10 @@ static void dbrelay_odbc_get_error(void *db)
    odbc_db_t *odbc = (odbc_db_t *) db;
    SQLCHAR sqlstate[6];
    SQLINTEGER errnum;
+   SQLRETURN ret;
 
-   SQLGetDiagRec(SQL_HANDLE_STMT, odbc->stmt, 1, sqlstate, &errnum, odbc->error_message, sizeof(odbc->error_message)-1, NULL);
+   ret = SQLGetDiagRec(SQL_HANDLE_STMT, odbc->stmt, 1, sqlstate, &errnum, odbc->error_message, sizeof(odbc->error_message)-1, NULL);
+   if (!SQL_SUCCEEDED(ret)) odbc->error_message[0]='\0';
 }
 
 char *dbrelay_odbc_error(void *db)
