@@ -399,6 +399,8 @@ log_msg(char *fmt, ...)
    struct tm *tm;
    char today[256];
 
+   if (!logfile) return;
+
    time(&t);
    tm = localtime(&t);
 
@@ -415,7 +417,7 @@ log_msg(char *fmt, ...)
 void log_close(FILE *log)
 {
 #if DEBUG
-   fclose(logfile);
+   if (logfile) fclose(logfile);
 #endif
 }
 
