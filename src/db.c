@@ -452,13 +452,14 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
    } else {
       if (!api->connected(conn->db)) {
         if (IS_EMPTY(request->sql_password)) {
-	    strcpy(error_string, "Login failed and no password was set, please check.\n");
+	    strcpy(error_string, "Connection failed and no password was set, please check.\n");
 	    dbrelay_copy_string(&error_string[strlen(error_string)], api->error(conn->db), sizeof(error_string) - strlen(error_string));
         } else if (!strlen(api->error(conn->db))) {
 	    strcpy(error_string, "Connection failed.\n");
         } else {
             dbrelay_copy_string(error_string, api->error(conn->db), sizeof(error_string));
         }
+        have_error = 1;
         request->emitapi->restart(emitter, request);
       } else {
    	dbrelay_log_debug(request, "Sending sql query");

@@ -425,11 +425,8 @@ dbrelay_mssql_msg_handler(DBPROCESS * dbproc, DBINT msgno, int msgstate, int sev
 int
 dbrelay_mssql_err_handler(DBPROCESS * dbproc, int severity, int dberr, int oserr, char *dberrstr, char *oserrstr)
 {
-   //db_error = strdup(dberrstr);
-   if (dbproc!=NULL) {
-      //dbrelay_request_t *request = (dbrelay_request_t *) dbgetuserdata(dbproc);
-      //strcat(request->error_message, dberrstr);
-   }
+   //fprintf(stderr, "%d: %s (%d: %s)\n", dberr, dberrstr, oserr, oserrstr);
+   sprintf(login_error, "%d: %s (%d: %s)\n", dberr, dberrstr, oserr, oserrstr);
 
    return INT_CANCEL;
 }
