@@ -40,16 +40,16 @@ char *sb_to_char(stringbuf_t *string)
    int end = 0;
    stringbuf_node_t *node;
    char *outstr = (char *) malloc(sb_len(string) + 1);
-   outstr[0] = '\0';
 
    node = string->head;
    do {
-      if (node->part) {
-         strcpy(&outstr[end], node->part);
-         end += strlen(node->part);
+      if (node->last) {
+         strncpy(&outstr[end], node->part, node->last);
+         end += node->last;
       }
       node = node->next;
    } while (node);
+   outstr[end] = '\0';
 
    return outstr;
 }
@@ -61,7 +61,7 @@ int sb_len(stringbuf_t *string)
 
    node = string->head;
    do {
-      if (node->part) len += strlen(node->part);
+      len += node->last + 1;
       node = node->next;
    } while (node);
 
@@ -79,7 +79,6 @@ void sb_free(stringbuf_t *string)
    do {
       prev = node;
       node = node->next;
-      if (prev->part) free(prev->part);
       free(prev);
    } while (node);
    free(string);
@@ -89,24 +88,47 @@ stringbuf_t *sb_new(char *s)
 {
    stringbuf_t *string = (stringbuf_t *) malloc(sizeof(stringbuf_t));
    memset(string, 0, sizeof(stringbuf_t));
-   stringbuf_node_t *new_node = malloc(sizeof(stringbuf_node_t));
+   stringbuf_node_t *new_node = (stringbuf_node_t *) malloc(sizeof(stringbuf_node_t));
    memset(new_node, 0, sizeof(stringbuf_node_t));
-   if (s) new_node->part = strdup(s); 
    string->head = new_node;
    string->tail = new_node;
+   string->block_count = 1;
+   if (s) sb_append(string, s);
 
    return string;
 }
 
 stringbuf_node_t *sb_append(stringbuf_t *string, char *s)
 {
-   stringbuf_node_t *new_node = malloc(sizeof(stringbuf_node_t));
-   memset(new_node, 0, sizeof(stringbuf_node_t));
-   if (s) new_node->part = strdup(s); 
-   string->tail->next = new_node;
-   string->tail = new_node;
+   stringbuf_node_t *new_node;
+   stringbuf_node_t *node = string->tail;
+   int len = strlen(s);
+   int left = 0, start = 0;
+ 
+   while (node->last + len > SB_BLOCK_SIZE)
+   { 
+      left = SB_BLOCK_SIZE - node->last;
+      if (left) 
+      {
+         //printf("copying %d bytes from %d to %d\n", left, start, node->last);
+         memcpy(&node->part[node->last], &s[start], left);
+         node->last = SB_BLOCK_SIZE;
+         len -= left;
+         start += left;
+      }
+      new_node = malloc(sizeof(stringbuf_node_t));
+      memset(new_node, 0, sizeof(stringbuf_node_t));
+      string->block_count++;
+      node->next = new_node;
+      string->tail = new_node;
+      node = new_node;
+   }
+   //printf("copying %d bytes from %d to %d. ", len, start, node->last);
+   memcpy(&node->part[node->last], &s[start], len);
+   node->last+=len;
+   //printf("last now %d\n", node->last);
 
-   return new_node;
+   return string->tail;
 }
 
 /*
