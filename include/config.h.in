@@ -1,5 +1,8 @@
 /* include/config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Define to limit max memory use */
+#undef DBRELAY_MAX_MEMUSAGE
+
 /* Define to 1 if building with FreeTDS support. */
 #undef HAVE_FREETDS
 

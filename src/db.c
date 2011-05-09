@@ -468,7 +468,10 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
            request->emitapi->restart(emitter, request);
    	   dbrelay_log_debug(request, "error");
            //strcpy(error_string, request->error_message);
-           strcpy(error_string, api->error(conn->db));
+           if (conn->mem_exceeded) {
+              strcpy(error_string, "Memory usage exceeded");
+              dbrelay_log_debug(request, "Memory usage exceeded");
+           } else strcpy(error_string, api->error(conn->db));
            have_error = 1;
         } else if (api->error(conn->db)) {
            request->emitapi->add_section(emitter, (char *)ret);
@@ -507,6 +510,7 @@ u_char *
 dbrelay_exec_query(dbrelay_connection_t *conn, dbrelay_request_t *request, char *sql)
 {
   u_char *ret;
+  int error;
  
   api->change_db(conn->db, request->sql_database);
 
@@ -514,7 +518,11 @@ dbrelay_exec_query(dbrelay_connection_t *conn, dbrelay_request_t *request, char 
 
   if (api->exec(conn->db, sql))
   {
-     ret = (u_char *) request->emitapi->fill(conn, request->flags);
+     ret = (u_char *) request->emitapi->fill(conn, request->flags, &error);
+     if (error==1) {
+        dbrelay_log_debug(request, "Memory exceeded\n");
+        conn->mem_exceeded = 1;
+     }
      if (request->flags & DBRELAY_FLAG_XACT) api->exec(conn->db, api->catalogsql(DBRELAY_DBCMD_COMMIT, NULL));
   } else {
      if (request->flags & DBRELAY_FLAG_XACT) api->exec(conn->db, api->catalogsql(DBRELAY_DBCMD_ROLLBACK, NULL));

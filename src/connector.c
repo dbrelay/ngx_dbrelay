@@ -221,11 +221,17 @@ main(int argc, char **argv)
               log_msg("addr = %lu\n", results);
               if (results == NULL) {
 	         log_msg("results are null\n"); 
-                 log_msg("error is %s\n", api->error(conn.db));
                  dbrelay_socket_send_string(s2, ":ERROR BEGIN\n");
-                 dbrelay_socket_send_string(s2, api->error(conn.db));
+                 if (conn.mem_exceeded) {
+                    log_msg("Memory usage exceeded");
+                    dbrelay_socket_send_string(s2, "Memory usage exceeded");
+                 } else {
+                    log_msg("error is %s\n", api->error(conn.db));
+                    dbrelay_socket_send_string(s2, api->error(conn.db));
+                 }
                  dbrelay_socket_send_string(s2, "\n");
                  dbrelay_socket_send_string(s2, ":ERROR END\n");
+                 conn.mem_exceeded = 0;
               } else if (api->error(conn.db)) {
                  log_msg("sending results\n"); 
                  dbrelay_socket_send_string(s2, ":RESULTS BEGIN\n");

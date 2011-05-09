@@ -157,6 +157,7 @@ typedef struct {
    pid_t helper_pid;
    char sock_path[DBRELAY_NAME_SZ];
    void *db;
+   int mem_exceeded;
 } dbrelay_connection_t;
 
 typedef void (*dbrelay_db_init)(void);
@@ -212,7 +213,7 @@ typedef void (*dbrelay_emit_restart)(void *emitter, dbrelay_request_t *request);
 typedef void (*dbrelay_emit_request)(void *emitter, dbrelay_request_t *request);
 typedef void (*dbrelay_emit_log)(void *emitter, dbrelay_request_t *request, char *error_string, int error);
 typedef void (*dbrelay_emit_add_section)(void *emitter, char *ret);
-typedef char *(*dbrelay_emit_fill)(dbrelay_connection_t *conn, unsigned long flags);
+typedef char *(*dbrelay_emit_fill)(dbrelay_connection_t *conn, unsigned long flags, int *error);
 
 
 struct dbrelay_emitapi_s {

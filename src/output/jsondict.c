@@ -6,7 +6,7 @@ void dbrelay_jsondict_restart(void *emitter, dbrelay_request_t *request);
 void dbrelay_jsondict_request(void *emitter, dbrelay_request_t *request);
 void dbrelay_jsondict_log(void *emitter, dbrelay_request_t *request, char *error_string, int error);
 void dbrelay_jsondict_add_section(void *emitter, char *ret);
-char *dbrelay_jsondict_fill(dbrelay_connection_t *conn, unsigned long flags);
+char *dbrelay_jsondict_fill(dbrelay_connection_t *conn, unsigned long flags, int *error);
 
 
 dbrelay_emitapi_t dbrelay_jsondict_api = 
@@ -87,13 +87,14 @@ static unsigned char dbrelay_is_unnamed_column(char *colname)
       return 0;
 }
 char *
-dbrelay_jsondict_fill(dbrelay_connection_t *conn, unsigned long flags)
+dbrelay_jsondict_fill(dbrelay_connection_t *conn, unsigned long flags, int *error)
 {
    int numcols, colnum;
    char tmp[256];
    int maxcolname;
    char *ret;
 
+   *error = 0;
    json_t *json = json_new();
 
    if (flags & DBRELAY_FLAG_PP) json_pretty_print(json, 1);
@@ -128,6 +129,12 @@ dbrelay_jsondict_fill(dbrelay_connection_t *conn, unsigned long flags)
            }
 	   if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_end_object(json);
            else json_add_json(json, "\\n");
+           if (json_mem_exceeded(json)) {
+              while (api->fetch_row(conn->db));
+              json_free(json);
+              *error=1;
+              return NULL;
+           }
         }
 
 	if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_end_array(json);
