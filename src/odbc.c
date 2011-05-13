@@ -36,6 +36,7 @@
 #include "vodbc.h"
 
 static void dbrelay_odbc_get_error(void *db);
+static numeric_to_string(SQL_NUMERIC_STRUCT numeric, char *dest);
 
 dbrelay_dbapi_t dbrelay_odbc_api = 
 {
@@ -356,10 +357,36 @@ int dbrelay_odbc_fetch_row(void *db)
 }
 char *dbrelay_odbc_colvalue(void *db, int colnum, char *dest)
 {
+   union {
+      SQLREAL f;
+      SQLFLOAT d;
+      SQL_NUMERIC_STRUCT n;
+   } data;
+   SQLSMALLINT coltype;
+   SQLULEN collen;
+   SQLSMALLINT scale;
    odbc_db_t *odbc = (odbc_db_t *) db;
    SQLLEN null;
 
-   SQLGetData(odbc->stmt, colnum, SQL_C_CHAR, dest, 256, &null);
+   SQLDescribeCol(odbc->stmt, colnum, NULL, 0, NULL, &coltype, &collen, &scale, NULL); 
+   switch (coltype) {
+      case SQL_REAL:
+         SQLGetData(odbc->stmt, colnum, SQL_C_FLOAT, &data.f, sizeof(SQL_C_FLOAT), &null);
+         sprintf(dest, "%.8g", data.f);
+         break;
+      case SQL_FLOAT:
+      case SQL_DOUBLE:
+         SQLGetData(odbc->stmt, colnum, SQL_C_DOUBLE, &data.d, sizeof(SQL_C_DOUBLE), &null);
+         sprintf(dest, "%.17g", data.d);
+         break;
+      case SQL_NUMERIC:
+         SQLGetData(odbc->stmt, colnum, SQL_C_NUMERIC, &data.n, sizeof(SQL_C_NUMERIC), &null);
+         numeric_to_string(data.n, dest);
+         break;
+      default:
+         SQLGetData(odbc->stmt, colnum, SQL_C_CHAR, dest, 256, &null);
+         break;
+   }
    if (null==SQL_NULL_DATA) return NULL;
 
    return dest;
@@ -391,3 +418,100 @@ int dbrelay_odbc_isalive(void *db)
    /* XXX - stub for now */
    return 1;
 }
+
+static int divide(unsigned char *d, unsigned char *q)
+{
+   int accum = 0;
+   int i, temp;
+   unsigned char digit;
+   int top;
+   int digits;
+
+   for (top = SQL_MAX_NUMERIC_LEN - 1; top> 0 && !d[top]; top--) ;
+   digits = (top+1) * 2 - 1;
+
+   for (i = digits; i >= 0; i--) {
+      if (i%2) digit = (d[i/2] & 0xF0) >> 4;
+      else digit = d[i/2] & 0x0F;
+      accum = (accum << 4) | digit;
+      if (accum > 0x0A) {
+         temp = accum / 0x0A;
+         accum -= 0xA * temp;
+         if (i%2) digit = 0xF0 & (temp << 4);
+         else digit = 0x0F & temp;
+         q[i/2]  = q[i/2] | digit;
+      } else {
+         if (i%2) digit = 0x0F;
+         else digit = 0xF0;
+         q[i/2]  = q[i/2] & digit;
+      }
+   }
+   // return the remainder
+   return accum;
+}
+
+static void reverse(unsigned char *s, int sz)
+{
+   int start = 0;
+   int end = sz - 1;
+   unsigned char c;
+
+   while (start < end) {
+      c=s[start]; 
+      s[start++] = s[end];
+      s[end--] = c;
+   }
+}
+static int is_empty(unsigned char *d, int digits)
+{
+   int i;
+
+   for (i=0; i<digits; i++)
+     if (d[i]) return 0;
+   return 1;
+}
+static numeric_to_string(SQL_NUMERIC_STRUCT numeric, char *dest)
+{
+   unsigned char q[SQL_MAX_NUMERIC_LEN];
+   unsigned char d[SQL_MAX_NUMERIC_LEN];
+   unsigned char *s = dest;
+   int hexdigits;
+   int sz = 0;
+   int need_dot = 0;
+   int i;
+
+   memcpy(d, numeric.val, SQL_MAX_NUMERIC_LEN);
+   memset(q, 0, SQL_MAX_NUMERIC_LEN);
+ 
+   if (is_empty(d, SQL_MAX_NUMERIC_LEN)) {
+      if (!numeric.scale) *s++='0';
+      else {
+         for (i=0;i<numeric.scale;i++) *s++='0';
+         *s++='.';
+         *s++='0';
+      }
+      *s='\0';
+      reverse(dest, strlen(dest));
+      return;
+   }
+
+   while (!is_empty(d, SQL_MAX_NUMERIC_LEN)) {
+      if (need_dot) *s++='.';
+      need_dot = 0;
+      *s++ = divide(d, q) + '0';
+      memcpy(d, q, SQL_MAX_NUMERIC_LEN);
+      memset(q, 0, SQL_MAX_NUMERIC_LEN);
+      sz++;
+      if (sz==numeric.scale) need_dot = 1;
+   }
+
+   if (need_dot) {
+      *s++='.';
+      *s++='0';
+   }
+
+   if (!numeric.sign) *s++='-';
+   *s='\0';
+   reverse(dest, strlen(dest));
+}
+
