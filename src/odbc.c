@@ -36,7 +36,7 @@
 #include "vodbc.h"
 
 static void dbrelay_odbc_get_error(void *db);
-static numeric_to_string(SQL_NUMERIC_STRUCT numeric, char *dest);
+static void numeric_to_string(SQL_NUMERIC_STRUCT numeric, unsigned char *dest);
 
 dbrelay_dbapi_t dbrelay_odbc_api = 
 {
@@ -381,7 +381,7 @@ char *dbrelay_odbc_colvalue(void *db, int colnum, char *dest)
          break;
       case SQL_NUMERIC:
          SQLGetData(odbc->stmt, colnum, SQL_C_NUMERIC, &data.n, sizeof(SQL_C_NUMERIC), &null);
-         numeric_to_string(data.n, dest);
+         numeric_to_string(data.n, (unsigned char *)dest);
          break;
       default:
          SQLGetData(odbc->stmt, colnum, SQL_C_CHAR, dest, 256, &null);
@@ -470,12 +470,11 @@ static int is_empty(unsigned char *d, int digits)
      if (d[i]) return 0;
    return 1;
 }
-static numeric_to_string(SQL_NUMERIC_STRUCT numeric, char *dest)
+static void numeric_to_string(SQL_NUMERIC_STRUCT numeric, unsigned char *dest)
 {
    unsigned char q[SQL_MAX_NUMERIC_LEN];
    unsigned char d[SQL_MAX_NUMERIC_LEN];
    unsigned char *s = dest;
-   int hexdigits;
    int sz = 0;
    int need_dot = 0;
    int i;
@@ -491,7 +490,7 @@ static numeric_to_string(SQL_NUMERIC_STRUCT numeric, char *dest)
          *s++='0';
       }
       *s='\0';
-      reverse(dest, strlen(dest));
+      reverse(dest, strlen((char *)dest));
       return;
    }
 
@@ -512,6 +511,6 @@ static numeric_to_string(SQL_NUMERIC_STRUCT numeric, char *dest)
 
    if (!numeric.sign) *s++='-';
    *s='\0';
-   reverse(dest, strlen(dest));
+   reverse(dest, strlen((char *)dest));
 }
 
