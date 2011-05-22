@@ -434,7 +434,7 @@ static int divide(unsigned char *d, unsigned char *q)
       if (i%2) digit = (d[i/2] & 0xF0) >> 4;
       else digit = d[i/2] & 0x0F;
       accum = (accum << 4) | digit;
-      if (accum > 0x0A) {
+      if (accum >= 0x0A) {
          temp = accum / 0x0A;
          accum -= 0xA * temp;
          if (i%2) digit = 0xF0 & (temp << 4);
