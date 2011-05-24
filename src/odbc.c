@@ -504,6 +504,12 @@ static void numeric_to_string(SQL_NUMERIC_STRUCT numeric, unsigned char *dest)
       if (sz==numeric.scale) need_dot = 1;
    }
 
+   while (sz<numeric.scale) {
+     *s++ = '0';
+     need_dot = 1;
+     sz++;
+   }
+
    if (need_dot) {
       *s++='.';
       *s++='0';
