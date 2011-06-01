@@ -138,6 +138,7 @@ main(int argc, char **argv)
       sock_path = SOCK_PATH;
    }
 
+   memset(&conn, 0, sizeof(dbrelay_connection_t));
    s = dbrelay_socket_create(sock_path);
 
    // fork and die so parent knows we are ready
