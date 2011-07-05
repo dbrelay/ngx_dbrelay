@@ -850,24 +850,28 @@ void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request)
 void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request)
 {
    char key[100];
-   char value[4000];
-   char *s, *k = key, *v = value;
+   char *value;
+   char *s, *k, *v;
    int target = 0;
 
    if (args.len==0) return;
+
+   value = malloc(args.len);
+   k = key;
+   v = value;
 
    for (s=(char *)args.data; *s && s < (((char *)args.data) + args.len); s++)
    { 
       if (*s=='&') {
          *k='\0';
 	 *v='\0';
-         ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "escaped value %s", value);
 	 write_value(request, key, value);
          target=0;
          k=key;
       } else if (*s=='=') {
          target=1;
          v=value;
+         *k='\0';
       } else if (target==0) {
          *k++=*s;
       } else {
@@ -877,7 +881,7 @@ void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request)
    *k='\0';
    while (v>=value && (*v=='\n' || *v=='\r')) *v--='\0';
    *v='\0';
-   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "escaped value %s", value);
    write_value(request, key, value);
+   free(value);
 }
 

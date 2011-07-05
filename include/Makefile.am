@@ -1,3 +1,4 @@
+CLEANFILES=dbrelay_config.h
 dbrelay_config.h: Makefile
 	echo '#define DBRELAY_PREFIX "$(prefix)"' >$@
 #	git show --abbrev-commit | grep "^commit" | awk '{print "#define DBRELAY_BUILD \"" $$2 "\""}' >>$@

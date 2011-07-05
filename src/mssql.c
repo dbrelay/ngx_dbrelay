@@ -295,7 +295,7 @@ int dbrelay_mssql_has_results(void *db)
 {
    mssql_db_t *mssql = (mssql_db_t *) db;
    int colnum;
-   int colsize;
+   int colsize, coltype;
    int numcols;
    RETCODE rc;
 
@@ -306,9 +306,14 @@ int dbrelay_mssql_has_results(void *db)
    numcols = dbnumcols(mssql->dbproc);
    for (colnum=1; colnum<=numcols; colnum++) {
       colsize = dbrelay_mssql_collen(db, colnum);
+      coltype = dbcoltype(mssql->dbproc, colnum);
       mssql->colval[colnum-1] = malloc(colsize > 256 ? colsize + 1 : 256);
       mssql->colval[colnum-1][0] = '\0';
-      dbbind(mssql->dbproc, colnum, NTBSTRINGBIND, 0, (BYTE *) mssql->colval[colnum-1]);
+      if (coltype == SYBDATETIME || coltype == SYBDATETIME4) 
+         dbbind(mssql->dbproc, colnum, DATETIMEBIND, sizeof(DBDATETIME), (BYTE *) mssql->colval[colnum-1]);
+      else
+         dbbind(mssql->dbproc, colnum, NTBSTRINGBIND, 0, (BYTE *) mssql->colval[colnum-1]);
+      
       dbnullbind(mssql->dbproc, colnum, (DBINT *) &(mssql->colnull[colnum-1]));
    }
    return TRUE;
@@ -361,13 +366,40 @@ int dbrelay_mssql_fetch_row(void *db)
    if (dbnextrow(mssql->dbproc)!=NO_MORE_ROWS) return TRUE; 
    return FALSE;
 }
+static void dbrelay_mssql_iso_date(DBPROCESS *dbproc, DBDATETIME *dt, char *dest)
+{
+   DBDATEREC dtinfo;
+
+   dbdatecrack(dbproc, &dtinfo, dt);
+   sprintf(dest, "%04d", dtinfo.dateyear);
+   dest[4]='-';
+   sprintf(&dest[5], "%02d", dtinfo.datemonth + 1);
+   dest[7]='-';
+   sprintf(&dest[8], "%02d", dtinfo.datedmonth);
+   dest[10]=' ';
+   sprintf(&dest[11], "%02d", dtinfo.datehour);
+   dest[13]=':';
+   sprintf(&dest[14], "%02d", dtinfo.dateminute);
+   dest[16]=':';
+   sprintf(&dest[17], "%02d", dtinfo.datesecond);
+   if (dtinfo.datemsecond) {
+      dest[19]='.';
+      sprintf(&dest[20], "%03d", dtinfo.datemsecond);
+   }
+}
 char *dbrelay_mssql_colvalue(void *db, int colnum, char *dest)
 {
    mssql_db_t *mssql = (mssql_db_t *) db;
 
+   int coltype = dbcoltype(mssql->dbproc, colnum);
+
    if (mssql->colnull[colnum-1]==-1) return NULL;
 
-   strcpy(dest, mssql->colval[colnum-1]);
+   if (coltype == SYBDATETIME || coltype == SYBDATETIME4) {
+      dbrelay_mssql_iso_date(mssql->dbproc, (DBDATETIME *) mssql->colval[colnum-1], dest);
+   } else {
+      strcpy(dest, mssql->colval[colnum-1]);
+   }
    return dest;
 }
 
@@ -393,11 +425,8 @@ dbrelay_mssql_msg_handler(DBPROCESS * dbproc, DBINT msgno, int msgstate, int sev
 int
 dbrelay_mssql_err_handler(DBPROCESS * dbproc, int severity, int dberr, int oserr, char *dberrstr, char *oserrstr)
 {
-   //db_error = strdup(dberrstr);
-   if (dbproc!=NULL) {
-      //dbrelay_request_t *request = (dbrelay_request_t *) dbgetuserdata(dbproc);
-      //strcat(request->error_message, dberrstr);
-   }
+   //fprintf(stderr, "%d: %s (%d: %s)\n", dberr, dberrstr, oserr, oserrstr);
+   sprintf(login_error, "%d: %s (%d: %s)\n", dberr, dberrstr, oserr, oserrstr);
 
    return INT_CANCEL;
 }

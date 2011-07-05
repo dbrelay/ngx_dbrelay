@@ -34,7 +34,13 @@
 
 #include <stdio.h>
 #include "json.h"
+#include "../include/config.h"
 
+int json_mem_exceeded(json_t *json)
+{
+   if (DBRELAY_MAX_MEMUSAGE && json->sb->block_count > DBRELAY_MAX_MEMUSAGE) return 1;
+   return 0;
+}
 json_t *json_new()
 {
    json_t *json = (json_t *) malloc(sizeof(json_t));

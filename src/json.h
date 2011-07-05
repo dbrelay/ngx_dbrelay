@@ -79,6 +79,7 @@ void json_add_null(json_t *json, char *key);
 void json_push(json_t *json, int node_type);
 void json_add_callback(json_t *json, char *value);
 void json_end_callback(json_t *json);
+int json_mem_exceeded(json_t *json);
 
 void json_set_mode(json_t *json, unsigned char mode);
 unsigned char json_get_mode(json_t *json);

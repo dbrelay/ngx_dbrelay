@@ -129,6 +129,15 @@ if test "$with_magic"; then
 	AC_SUBST(DBRELAY_MAGIC)
 fi
 
+AC_ARG_WITH(maxmem,
+AS_HELP_STRING([--with-maxmem=BLOCKS], [Max memory usage in 4K blocks [0]]))
+if test "$with_maxmem" != ""; then
+        AC_DEFINE_UNQUOTED(DBRELAY_MAX_MEMUSAGE, ${with_maxmem}, [Define to limit max memory use])
+else 
+        AC_DEFINE(DBRELAY_MAX_MEMUSAGE, 0, [Define to limit max memory use])
+fi
+
+
 AC_CHECK_TYPES([semun])
 if test "$ac_cv_type_semun" = "no"; then
   AC_MSG_CHECKING(if sem.h defines semun)

@@ -157,6 +157,7 @@ typedef struct {
    pid_t helper_pid;
    char sock_path[DBRELAY_NAME_SZ];
    void *db;
+   int mem_exceeded;
 } dbrelay_connection_t;
 
 typedef void (*dbrelay_db_init)(void);
@@ -210,9 +211,9 @@ typedef void *(*dbrelay_emit_init)(dbrelay_request_t *request);
 typedef char *(*dbrelay_emit_finalize)(void *emitter, dbrelay_request_t *request);
 typedef void (*dbrelay_emit_restart)(void *emitter, dbrelay_request_t *request);
 typedef void (*dbrelay_emit_request)(void *emitter, dbrelay_request_t *request);
-typedef void (*dbrelay_emit_log)(void *emitter, dbrelay_request_t *request, char *error_string);
+typedef void (*dbrelay_emit_log)(void *emitter, dbrelay_request_t *request, char *error_string, int error);
 typedef void (*dbrelay_emit_add_section)(void *emitter, char *ret);
-typedef char *(*dbrelay_emit_fill)(dbrelay_connection_t *conn, unsigned long flags);
+typedef char *(*dbrelay_emit_fill)(dbrelay_connection_t *conn, unsigned long flags, int *error);
 
 
 struct dbrelay_emitapi_s {
@@ -255,7 +256,7 @@ key_t dbrelay_get_ipc_key();
 
 /* connection.c */
 pid_t dbrelay_conn_initialize(int s, dbrelay_request_t *request);
-char *dbrelay_conn_send_request(int s, dbrelay_request_t *request, int *error);
+int dbrelay_conn_send_request(int s, dbrelay_request_t *request, char **results, char **errors);
 int dbrelay_conn_set_option(int s, char *option, char *value);
 pid_t dbrelay_conn_launch_connector(char *sock_path, dbrelay_request_t *request);
 u_char *dbrelay_exec_query(dbrelay_connection_t *conn, dbrelay_request_t *request, char *sql); 

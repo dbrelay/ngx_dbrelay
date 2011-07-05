@@ -138,19 +138,17 @@ main(int argc, char **argv)
       sock_path = SOCK_PATH;
    }
 
-   set_timer(60); // set a default timer in case nobody attaches
-
-   api->init();
-
+   memset(&conn, 0, sizeof(dbrelay_connection_t));
    s = dbrelay_socket_create(sock_path);
 
    // fork and die so parent knows we are ready
    if (!GDB && (pid=fork())) {
-      //fprintf(stdout, ":PID %lu\n", pid);
       exit(0);
    }
-   // allow control to return to the (grand)parent process
-   //fclose(stdout);
+
+   set_timer(60); // set a default timer in case nobody attaches
+
+   api->init();
 
    log_open();
    log_msg("Using socket path %s\n", sock_path);
@@ -224,6 +222,25 @@ main(int argc, char **argv)
               log_msg("addr = %lu\n", results);
               if (results == NULL) {
 	         log_msg("results are null\n"); 
+                 dbrelay_socket_send_string(s2, ":ERROR BEGIN\n");
+                 if (conn.mem_exceeded) {
+                    log_msg("Memory usage exceeded");
+                    dbrelay_socket_send_string(s2, "Memory usage exceeded");
+                 } else {
+                    log_msg("error is %s\n", api->error(conn.db));
+                    dbrelay_socket_send_string(s2, api->error(conn.db));
+                 }
+                 dbrelay_socket_send_string(s2, "\n");
+                 dbrelay_socket_send_string(s2, ":ERROR END\n");
+                 conn.mem_exceeded = 0;
+              } else if (api->error(conn.db)) {
+                 log_msg("sending results\n"); 
+                 dbrelay_socket_send_string(s2, ":RESULTS BEGIN\n");
+                 log_msg("%s\n", results);
+                 log_msg("len = %d\n", strlen(results));
+                 dbrelay_socket_send_string(s2, results);
+                 dbrelay_socket_send_string(s2, "\n");
+                 dbrelay_socket_send_string(s2, ":RESULTS END\n");
                  log_msg("error is %s\n", api->error(conn.db));
                  dbrelay_socket_send_string(s2, ":ERROR BEGIN\n");
                  dbrelay_socket_send_string(s2, api->error(conn.db));
@@ -389,6 +406,8 @@ log_msg(char *fmt, ...)
    struct tm *tm;
    char today[256];
 
+   if (!logfile) return;
+
    time(&t);
    tm = localtime(&t);
 
@@ -405,7 +424,7 @@ log_msg(char *fmt, ...)
 void log_close(FILE *log)
 {
 #if DEBUG
-   fclose(logfile);
+   if (logfile) fclose(logfile);
 #endif
 }
 

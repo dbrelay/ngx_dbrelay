@@ -4,9 +4,9 @@ void *dbrelay_csv_init(dbrelay_request_t *request);
 char *dbrelay_csv_finalize(void *emitter, dbrelay_request_t *request);
 void dbrelay_csv_restart(void *emitter, dbrelay_request_t *request);
 void dbrelay_csv_request(void *emitter, dbrelay_request_t *request);
-void dbrelay_csv_log(void *emitter, dbrelay_request_t *request, char *error_string);
+void dbrelay_csv_log(void *emitter, dbrelay_request_t *request, char *error_string, int error);
 void dbrelay_csv_add_section(void *emitter, char *ret);
-char *dbrelay_csv_fill(dbrelay_connection_t *conn, unsigned long flags);
+char *dbrelay_csv_fill(dbrelay_connection_t *conn, unsigned long flags, int *error);
 
 
 dbrelay_emitapi_t dbrelay_csv_api = 
@@ -69,7 +69,7 @@ static unsigned char dbrelay_is_unnamed_column(char *colname)
       return 0;
 }
 char *
-dbrelay_csv_fill(dbrelay_connection_t *conn, unsigned long flags)
+dbrelay_csv_fill(dbrelay_connection_t *conn, unsigned long flags, int *error)
 {
    int numcols, colnum;
    int maxcolname;
@@ -95,6 +95,11 @@ dbrelay_csv_fill(dbrelay_connection_t *conn, unsigned long flags)
               dbrelay_write_csv_column(sb, conn->db, colnum);
            }
            sb_append(sb, "\n");
+           if (sb->block_count > DBRELAY_MAX_MEMUSAGE) {
+              sb_free(sb);
+              *error = 1;
+              return NULL;
+           }
         }
    }
    ret = sb_to_char(sb);
@@ -119,7 +124,7 @@ dbrelay_csv_request(void *e, dbrelay_request_t *request)
 {
 }
 void 
-dbrelay_csv_log(void *e, dbrelay_request_t *request, char *error_string)
+dbrelay_csv_log(void *e, dbrelay_request_t *request, char *error_string, int error)
 {
 }
 static void

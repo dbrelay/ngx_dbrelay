@@ -38,13 +38,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define SB_BLOCK_SIZE 4096
+
 typedef struct stringbuf_s {
+   unsigned long block_count;
    struct stringbuf_node_s *head;
    struct stringbuf_node_s *tail;
 } stringbuf_t;
 
 typedef struct stringbuf_node_s {
-   char *part;
+   char part[SB_BLOCK_SIZE];
+   int last;
    struct stringbuf_node_s *next;
 } stringbuf_node_t;
 
