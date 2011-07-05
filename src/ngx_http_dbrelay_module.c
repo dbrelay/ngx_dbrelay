@@ -43,8 +43,14 @@
 #endif
 
 typedef struct {
+    ngx_str_t   name;
+    ngx_str_t   connstring;
+} ngx_http_dbrelay_connstring_t;
+
+typedef struct {
     ngx_http_upstream_conf_t   upstream;
     ngx_str_t   origin;
+    ngx_array_t *connstrings;
 } ngx_http_dbrelay_loc_conf_t;
 
 void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request);
@@ -54,11 +60,14 @@ static char *ngx_http_dbrelay_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf
 //static ngx_int_t ngx_http_dbrelay_create_request(ngx_http_request_t *r);
 static void *ngx_http_dbrelay_create_loc_conf(ngx_conf_t *cf);
 static ngx_int_t ngx_http_dbrelay_send_response(ngx_http_request_t *r);
+char *ngx_dbrelay_conf_connstring(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 ngx_int_t ngx_http_dbrelay_init_master(ngx_log_t *log);
 void ngx_http_dbrelay_exit_master(ngx_cycle_t *cycle);
 static void write_flag_values(dbrelay_request_t *request, char *value);
 static unsigned int accepts_application_json(ngx_http_request_t *r);
 static u_char *get_header_value(ngx_http_request_t *r, char *header_key);
+static void populate_connstring(dbrelay_request_t *request, ngx_str_t connstring);
+static void replace_connstring_var(char **s1, char **s2, char *var, char *value);
 
 extern dbrelay_emitapi_t dbrelay_jsondict_api;
 extern dbrelay_emitapi_t dbrelay_jsonarr_api;
@@ -78,6 +87,14 @@ static ngx_command_t  ngx_http_dbrelay_commands[] = {
       ngx_conf_set_str_slot,
       NGX_HTTP_LOC_CONF_OFFSET,
       offsetof(ngx_http_dbrelay_loc_conf_t,origin),
+      NULL },
+
+    { ngx_string("dbrelay_connstring"),
+      NGX_HTTP_LOC_CONF|NGX_CONF_TAKE2,
+      ngx_dbrelay_conf_connstring,
+      NGX_HTTP_LOC_CONF_OFFSET,
+      0,
+      //offsetof(ngx_http_dbrelay_loc_conf_t,connstring),
       NULL },
 
       ngx_null_command
@@ -468,16 +485,18 @@ ngx_http_dbrelay_handler(ngx_http_request_t *r)
 static ngx_int_t
 ngx_http_dbrelay_send_response(ngx_http_request_t *r)
 {
-    ngx_int_t                  rc;
-    ngx_log_t                 *log;
-    ngx_buf_t                 *b;
-    ngx_chain_t                out;
+    ngx_int_t                 rc;
+    ngx_log_t                *log;
+    ngx_buf_t                *b;
+    ngx_chain_t              out;
+    ngx_uint_t                i;
     u_char *json_output;
     u_char *header_value;
     dbrelay_request_t *request;
     size_t len;
     int cplength;
     ngx_http_dbrelay_loc_conf_t  *vlcf;
+    ngx_http_dbrelay_connstring_t *connstring;
 
     vlcf = ngx_http_get_module_loc_conf(r, ngx_http_dbrelay_module);
 
@@ -502,6 +521,17 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     } else if (r->request_body->buf && r->request_body->buf->pos!=NULL) {
 	parse_post_query_string(r->request_body->bufs, request);
     } 
+
+    if (vlcf->connstrings != NULL && vlcf->connstrings->nelts != 0) {
+       connstring = vlcf->connstrings->elts;
+
+       for (i = 0; i < vlcf->connstrings->nelts; i++) {
+          if (!strcmp(request->sql_dbtype,(char *)connstring[i].name.data))
+             populate_connstring(request, connstring[i].connstring);
+       }
+        //ngx_log_error(NGX_LOG_DEBUG, log, 0, "connection string is %s", request->connstring);
+    }
+
     /* FIX ME - need to check to see if we have everything and error if not */
 
     if (!request->http_keepalive) {
@@ -573,6 +603,37 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     rc = ngx_http_output_filter(r, &out);
     ngx_http_finalize_request(r, rc);
     return rc;
+}
+static void
+replace_connstring_var(char **s1, char **s2, char *var, char *value)
+{
+   char *p;
+
+   *s2[0]='\0';
+   printf("! s1 = %s\n", *s1);
+   if ((p = strstr(*s1, var))) {
+      *p='\0';
+      strcpy(*s2, *s1);
+      strcat(*s2, value);
+      strcat(*s2, p+2);
+      /* swap pointers */
+      p = *s2;
+      *s2 = *s1;
+      *s1 = p;
+   }
+}
+static void
+populate_connstring(dbrelay_request_t *request, ngx_str_t connstring)
+{
+   char temp1[500], temp2[500], *s1=temp1, *s2=temp2;
+
+   strcpy(s1, (char *)connstring.data);
+   replace_connstring_var(&s1, &s2, "%h", request->sql_server);
+   replace_connstring_var(&s1, &s2, "%u", request->sql_user);
+   replace_connstring_var(&s1, &s2, "%w", request->sql_password);
+   replace_connstring_var(&s1, &s2, "%p", request->sql_port);
+
+   strcpy(request->connstring, s1);
 }
 
 static char *
@@ -845,3 +906,34 @@ void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request)
    free(value);
 }
 
+char *
+ngx_dbrelay_conf_connstring(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_http_dbrelay_connstring_t          *connstring;
+    ngx_http_dbrelay_loc_conf_t           *vlcf = conf;
+    ngx_str_t                         *value = cf->args->elts;
+    ngx_str_t                         name = value[1];
+    ngx_str_t                         string = value[2];
+
+    fprintf(stderr, "conf_connstring called\n");
+
+    if (vlcf->connstrings == NULL) {
+        vlcf->connstrings = ngx_array_create(cf->pool, 4,
+                             sizeof(ngx_http_dbrelay_connstring_t));
+        if (vlcf->connstrings == NULL) {
+            return NGX_CONF_ERROR;
+        }
+
+        vlcf->connstrings = vlcf->connstrings;
+    }
+
+    connstring = ngx_array_push(vlcf->connstrings);
+    if (connstring == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    ngx_memzero(connstring, sizeof(ngx_http_dbrelay_connstring_t));
+    connstring->name = name;
+    connstring->connstring = string;
+    return NGX_CONF_OK;
+}
