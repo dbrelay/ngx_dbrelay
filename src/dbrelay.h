@@ -230,8 +230,6 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request);
 u_char *dbrelay_db_status(dbrelay_request_t *request);
 void dbrelay_db_close_connection(dbrelay_connection_t *conn, dbrelay_request_t *request);
 void dbrelay_copy_string(char *dest, char *src, int sz);
-char *dbrelay_resolve_params(dbrelay_request_t *request, char *sql);
-int dbrelay_check_request(dbrelay_request_t *request);
 
 
 

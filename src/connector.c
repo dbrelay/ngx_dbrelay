@@ -428,3 +428,10 @@ void log_close(FILE *log)
 #endif
 }
 
+dbrelay_connection_t *dbrelay_get_shmem()
+{
+    return NULL;
+}
+void dbrelay_release_shmem(dbrelay_connection_t *connections)
+{
+}

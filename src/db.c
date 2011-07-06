@@ -547,17 +547,12 @@ dbrelay_alloc_request()
 }
 void
 dbrelay_free_request(dbrelay_request_t *request)
-dbrelay_copy_string(char *dest, char *src, int sz)
 {
    if (request->sql) free(request->sql);
 
    free(request);
-   if (strlen(src) < (unsigned int) sz) strcpy(dest, src);
-   else {
-      strncpy(dest, src, sz - 1);
-      dest[sz-1]='\0';
-   }
 }
+
 static int
 is_quoted_param(char *param)
 {
