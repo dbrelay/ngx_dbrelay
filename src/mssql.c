@@ -160,6 +160,7 @@ static char *dbrelay_mssql_get_sqltype_string(char *dest, int coltype, int colle
 		case SYBCHAR : 
 			sprintf(dest, "char");
 			break;
+		case SYBINT8 : 
 		case SYBINT4 : 
 		case SYBINT2 : 
 		case SYBINT1 : 
@@ -170,6 +171,8 @@ static char *dbrelay_mssql_get_sqltype_string(char *dest, int coltype, int colle
 				sprintf(dest, "smallint");
 			else if (collen==4)
 				sprintf(dest, "int");
+			else if (collen==8)
+				sprintf(dest, "bigint");
 			break;
 		case SYBFLT8 : 
 		case SYBREAL : 
