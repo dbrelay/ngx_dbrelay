@@ -73,12 +73,18 @@ void *dbrelay_odbc_connect(dbrelay_request_t *request)
    SQLCHAR sqlstate[6];
    SQLCHAR message[255];
    SQLINTEGER errnum;
+   SQLCHAR outstr[1024];
+   SQLSMALLINT outstrlen;
 
    SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &odbc->env);
    SQLSetEnvAttr(odbc->env, SQL_ATTR_ODBC_VERSION, (SQLPOINTER) (SQL_OV_ODBC3), SQL_IS_UINTEGER);
    SQLAllocHandle(SQL_HANDLE_DBC, odbc->env, &odbc->dbc);
 
-   ret = SQLConnect(odbc->dbc, (SQLCHAR *) request->sql_server, SQL_NTS, (SQLCHAR *) request->sql_user, SQL_NTS, (SQLCHAR *) request->sql_password, SQL_NTS);
+   if (IS_SET(request->connstring)) {
+      ret = SQLDriverConnect(odbc->dbc, NULL, (SQLCHAR *) request->connstring, SQL_NTS, outstr, sizeof(outstr), &outstrlen, SQL_DRIVER_COMPLETE);
+   } else {
+      ret = SQLConnect(odbc->dbc, (SQLCHAR *) request->sql_server, SQL_NTS, (SQLCHAR *) request->sql_user, SQL_NTS, (SQLCHAR *) request->sql_password, SQL_NTS);
+   }
 
    if (! SQL_SUCCEEDED(ret)) {
       SQLGetDiagRec(SQL_HANDLE_DBC, odbc->dbc, 1, sqlstate, &errnum, message, sizeof(message), NULL);

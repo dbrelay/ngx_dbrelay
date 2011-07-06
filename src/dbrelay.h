@@ -139,6 +139,7 @@ typedef struct {
    char output_style[DBRELAY_NAME_SZ];
    dbrelay_dbapi_t *dbapi;
    dbrelay_emitapi_t *emitapi;
+   char connstring[500]; // FIX ME static size
 } dbrelay_request_t;
 
 typedef struct {
