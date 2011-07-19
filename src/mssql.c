@@ -35,6 +35,7 @@
 #include "dbrelay.h"
 #include "stringbuf.h"
 #include "mssql.h"
+#define DBRELAY_DEFAULT_TEXTSIZE 65356L
 
 dbrelay_dbapi_t dbrelay_mssql_api = 
 {
@@ -85,6 +86,9 @@ void *dbrelay_mssql_connect(dbrelay_request_t *request)
    int len; 
    mssql_db_t *mssql = (mssql_db_t *) malloc(sizeof(mssql_db_t));
    memset(mssql, 0, sizeof(mssql_db_t));
+#if DBRELAY_DEFAULT_TEXTSIZE
+   int rc;
+#endif
 
    dberrhandle(dbrelay_mssql_err_handler);
    dbmsghandle(dbrelay_mssql_msg_handler);
@@ -117,6 +121,13 @@ void *dbrelay_mssql_connect(dbrelay_request_t *request)
    //conn->db = (void *) mssql;
    //conn->login = mssql->login;
    //conn->dbproc = mssql->dbproc;
+#if DBRELAY_DEFAULT_TEXTSIZE
+   rc = dbfcmd(mssql->dbproc, "set textsize %lu", DBRELAY_DEFAULT_TEXTSIZE);
+   rc = dbsqlexec(mssql->dbproc);
+   while ((rc = dbresults(mssql->dbproc)) != NO_MORE_RESULTS) 
+      while (dbnextrow(mssql->dbproc)!=NO_MORE_ROWS);
+#endif
+
    return (void *) mssql;
 }
 void dbrelay_mssql_close(void *db)
