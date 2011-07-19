@@ -73,7 +73,10 @@ void set_signal();
 char app_name[DBRELAY_NAME_SZ];
 char timeout_str[10];
 int receive_sql;
+int receive_param;
 stringbuf_t *sb_sql;
+stringbuf_t *sb_param;
+int paramnum;
 char logfilename[256];
 
 dbrelay_request_t request;
@@ -131,6 +134,7 @@ main(int argc, char **argv)
    pid_t pid;
    int tries = 0;
    struct timeval now;
+   char *newsql;
 
    if (argc>1) {
       sock_path = argv[1];
@@ -218,7 +222,10 @@ main(int argc, char **argv)
               log_msg("%s\n", request.sql);
               // don't timeout during query run
 	      if (request.connection_timeout) set_timer(DBRELAY_HARD_TIMEOUT);
-              results = (char *) dbrelay_exec_query(&conn, &request, request.sql);
+
+              newsql = dbrelay_resolve_params(&request, request.sql);
+              log_msg("newsql %s\n", newsql);
+              results = (char *) dbrelay_exec_query(&conn, &request, newsql);
               log_msg("addr = %lu\n", results);
               if (results == NULL) {
 	         log_msg("results are null\n"); 
@@ -281,6 +288,7 @@ main(int argc, char **argv)
         } // recv
         if (t<=0) log_msg("client connection broken\n");
         receive_sql = 0;
+        receive_param = 0;
         if (!api->isalive(conn.db)) {
            connected = 0;
         }
@@ -304,6 +312,14 @@ process_line(char *line)
         return CONT;
       }
    } 
+   if (receive_param) {
+      log_msg("param mode\n");
+      log_msg("line: %s\n", line);
+      if (!line || strlen(line)<10 || strncmp(line, ":PARAM END", 10)) {
+      	sb_append(sb_param, line);
+        return CONT;
+      }
+   }
    if (line[strlen(line)-1]=='\n') line[strlen(line)-1]='\0';
 
    if (len<1 || line[0]!=':') {
@@ -345,6 +361,26 @@ process_line(char *line)
       } else if (!strcmp(temp_str, "csv")) {
          request.emitapi = &dbrelay_csv_api;
       }
+   }
+   //else if (check_command(line, "SET PARAM", temp_str, sizeof(temp_str))) {
+   else if (check_command(line, "PARAM", arg, sizeof(arg))) {
+      if (!strncmp(arg, "BEGIN", 5)) {
+         log_msg("param mode on\n");
+         paramnum = atoi(&line[13]);
+         receive_param = 1;
+         if (request.params[paramnum]) free(request.params[paramnum]);
+         sb_param = sb_new(NULL);
+         //request.params[paramnum]=strdup(temp_str);
+         log_msg("param %d\n", paramnum);
+      } else if (!strncmp(arg, "END", 3)) {
+         log_msg("param mode off\n");
+         receive_param = 0;
+         request.params[paramnum] = sb_to_char(sb_param);
+         if (request.params[paramnum][strlen(request.params[paramnum])-1]=='\n') request.params[paramnum][strlen(request.params[paramnum])-1]='\0';
+         sb_free(sb_sql);
+      } else return ERR;
+      if (receive_param) return CONT;
+      else return OK;
    }
    else if (check_command(line, "SQL", arg, sizeof(arg))) {
       if (!strcmp(arg, "BEGIN")) {

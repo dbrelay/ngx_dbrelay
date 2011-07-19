@@ -58,7 +58,6 @@ extern dbrelay_emitapi_t dbrelay_jsondict_api;
 #define FALSE 0
 
 static int dbrelay_db_get_connection(dbrelay_request_t *request);
-static char *dbrelay_resolve_params(dbrelay_request_t *request, char *sql);
 static int dbrelay_find_placeholder(char *sql);
 static int dbrelay_check_request(dbrelay_request_t *request);
 static void dbrelay_db_zero_connection(dbrelay_connection_t *conn, dbrelay_request_t *request);
@@ -390,8 +389,6 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
         return (u_char *) request->emitapi->finalize(emitter, request);
    }
 
-   newsql = dbrelay_resolve_params(request, request->sql);
-
    conn = dbrelay_wait_for_connection(request, &s);
    if (conn == NULL) {
       request->emitapi->restart(emitter, request);
@@ -408,7 +405,6 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
          strcpy(error_string, "Couldn't initialize connector");
          request->emitapi->restart(emitter, request);
          request->emitapi->log(emitter, request, "Couldn't initialize connector", 1);
-         free(newsql);
          return (u_char *) request->emitapi->finalize(emitter, request);
       } else if (helper_pid) {
          // write the connectors pid into shared memory
@@ -435,7 +431,7 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
            free(messages);
         } else {
            dbrelay_log_warn(request, "Connector returned no information");
-           dbrelay_log_info(request, "Query was: %s", newsql);
+           dbrelay_log_info(request, "Query was: %s", request->sql);
         }
       } else {
          dbrelay_log_debug(request, "received results");
@@ -450,6 +446,8 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
       dbrelay_conn_close(s);
       dbrelay_log_debug(request, "after close");
    } else {
+      newsql = dbrelay_resolve_params(request, request->sql);
+
       if (!api->connected(conn->db)) {
         if (IS_EMPTY(request->sql_password)) {
 	    strcpy(error_string, "Connection failed and no password was set, please check.\n");
@@ -483,10 +481,10 @@ u_char *dbrelay_db_run_query(dbrelay_request_t *request)
         }
    	dbrelay_log_debug(request, "Done filling JSON output");
       }
+
+      free(newsql);
    } // !named connection
    free(conn);
-
-   free(newsql);
 
    dbrelay_log_debug(request, "error = %s\n", error_string);
    request->emitapi->log(emitter, request, error_string, have_error);
@@ -568,7 +566,7 @@ is_quoted_param(char *param)
    free(tmp);
    return ret;
 }
-static char *
+char *
 dbrelay_resolve_params(dbrelay_request_t *request, char *sql)
 {
    int i = 0;

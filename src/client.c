@@ -102,7 +102,7 @@ dbrelay_conn_send_request(int s, dbrelay_request_t *request, char **results_out,
    char in_buf[DBRELAY_SOCKET_BUFSIZE];
    int in_ptr = -1;
    char tmp[20];
-   int t;
+   int t, i = 0;
    int defer_newline = 0;
 
    results_out[0]='\0';
@@ -132,6 +132,21 @@ dbrelay_conn_send_request(int s, dbrelay_request_t *request, char **results_out,
    if (request->output_style && strlen(request->output_style)) {
       if (dbrelay_conn_set_option(s, "OUTPUT", request->output_style)<0)  
           return dbrelay_conn_socket_error(request, errors_out);
+   }
+   while (request->params[i]) {
+      dbrelay_log_info(request, "sending param %d %s", i, request->params[i]);
+      //sprintf(tmp, "PARAM%d", i);
+      sprintf(tmp, ":PARAM BEGIN %d\n", i);
+      if (dbrelay_socket_send_string(s, tmp)<0) 
+         return dbrelay_conn_socket_error(request, errors_out);
+      if (dbrelay_socket_send_string(s, request->params[i])<0) 
+         return dbrelay_conn_socket_error(request, errors_out);
+      if (dbrelay_socket_send_string(s, "\n")<0) 
+         return dbrelay_conn_socket_error(request, errors_out);
+      if (dbrelay_socket_send_string(s, ":PARAM END\n")<0) 
+         return dbrelay_conn_socket_error(request, errors_out);
+      i++;
+      dbrelay_socket_recv_string(s, in_buf, &in_ptr, out_buf, 0);
    }
 
    if (dbrelay_socket_send_string(s, ":SQL BEGIN\n")<0) 
