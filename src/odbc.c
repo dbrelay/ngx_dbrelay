@@ -34,6 +34,7 @@
 
 #include "stringbuf.h"
 #include "vodbc.h"
+#include <math.h>
 
 static void dbrelay_odbc_get_error(void *db);
 static void numeric_to_string(SQL_NUMERIC_STRUCT numeric, unsigned char *dest);
@@ -372,11 +373,13 @@ char *dbrelay_odbc_colvalue(void *db, int colnum, char *dest)
    switch (coltype) {
       case SQL_REAL:
          SQLGetData(odbc->stmt, colnum, SQL_C_FLOAT, &data.f, sizeof(SQL_C_FLOAT), &null);
+         if (isnan(data.f) || isinf(data.f)) strcpy(dest, "null");
          sprintf(dest, "%.8g", data.f);
          break;
       case SQL_FLOAT:
       case SQL_DOUBLE:
          SQLGetData(odbc->stmt, colnum, SQL_C_DOUBLE, &data.d, sizeof(SQL_C_DOUBLE), &null);
+         if (isnan(data.d) || isinf(data.d)) strcpy(dest, "null");
          sprintf(dest, "%.17g", data.d);
          break;
       case SQL_NUMERIC:
