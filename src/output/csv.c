@@ -82,11 +82,13 @@ dbrelay_csv_fill(dbrelay_connection_t *conn, unsigned long flags, int *error)
         maxcolname = 0;
 
 	numcols = api->numcols(conn->db);
-	for (colnum=1; colnum<=numcols; colnum++) {
-            if (colnum!=1) sb_append(sb, ",");
-            dbrelay_write_csv_colname(sb, conn->db, colnum, &maxcolname);
+        if (numcols) {
+	   for (colnum=1; colnum<=numcols; colnum++) {
+               if (colnum!=1) sb_append(sb, ",");
+               dbrelay_write_csv_colname(sb, conn->db, colnum, &maxcolname);
+           }
+           sb_append(sb, "\n");
         }
-        sb_append(sb, "\n");
 
         while (api->fetch_row(conn->db)) { 
            maxcolname = 0;

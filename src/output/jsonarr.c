@@ -7,7 +7,8 @@ void dbrelay_jsondict_request(void *emitter, dbrelay_request_t *request);
 void dbrelay_jsondict_log(void *emitter, dbrelay_request_t *request, char *error_string, int error);
 void dbrelay_jsondict_add_section(void *emitter, char *ret);
 char *dbrelay_jsonarr_fill(dbrelay_connection_t *conn, unsigned long flags, int *error);
-
+void dbrelay_write_json_all_colinfo(dbrelay_connection_t *conn, json_t *json);
+void dbrelay_write_json_colinfo(json_t *json, void *db, int colnum, int *maxcolname);
 
 dbrelay_emitapi_t dbrelay_jsonarr_api = 
 {
@@ -20,7 +21,6 @@ dbrelay_emitapi_t dbrelay_jsonarr_api =
    &dbrelay_jsonarr_fill
 };
 
-static void dbrelay_write_json_colinfo(json_t *json, void *db, int colnum, int *maxcolname);
 static void dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolname);
 static void dbrelay_write_json_column_csv(json_t *json, void *db, int colnum);
 static void dbrelay_write_json_column_std(json_t *json, void *db, int colnum, char *colname);
@@ -50,6 +50,7 @@ dbrelay_jsonarr_fill(dbrelay_connection_t *conn, unsigned long flags, int *error
    char tmp[256];
    int maxcolname;
    char *ret;
+   int rows = 0;
 
    *error = 0;
    json_t *json = json_new();
@@ -62,22 +63,18 @@ dbrelay_jsonarr_fill(dbrelay_connection_t *conn, unsigned long flags, int *error
    json_new_array(json);
    while (api->has_results(conn->db)) 
    {
-        maxcolname = 0;
-	json_new_object(json);
-	json_add_key(json, "fields");
-	json_new_array(json);
-
-	numcols = api->numcols(conn->db);
-	for (colnum=1; colnum<=numcols; colnum++) {
-            dbrelay_write_json_colinfo(json, conn->db, colnum, &maxcolname);
+   
+        numcols = api->numcols(conn->db);
+        if (numcols) {
+           json_new_object(json);
+           dbrelay_write_json_all_colinfo(conn, json);
+           json_add_key(json, "rows");
+           if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_new_array(json);
+           else json_add_json(json, "\"");
         }
-	json_end_array(json);
-	json_add_key(json, "rows");
-
-	if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_new_array(json);
-        else json_add_json(json, "\"");
 
         while (api->fetch_row(conn->db)) { 
+
            maxcolname = 0;
 	   if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_new_array(json);
 	   for (colnum=1; colnum<=numcols; colnum++) {
@@ -93,10 +90,18 @@ dbrelay_jsonarr_fill(dbrelay_connection_t *conn, unsigned long flags, int *error
                *error = 1;
                return NULL;
            }
+           rows++;
+        }
+        if (numcols==0 && rows==0 && api->rowcount(conn->db)==-1) {
+           continue;
         }
 
-	if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_end_array(json);
-        else json_add_json(json, "\",");
+        if (numcols) {
+	   if (json_get_mode(json)==DBRELAY_JSON_MODE_STD) json_end_array(json);
+           else json_add_json(json, "\",");
+        } else {
+           json_new_object(json);
+        }
 
         if (api->rowcount(conn->db)==-1) {
            json_add_null(json, "count");
@@ -106,49 +111,13 @@ dbrelay_jsonarr_fill(dbrelay_connection_t *conn, unsigned long flags, int *error
         }
         json_end_object(json);
    }
+
    /* sprintf(error_string, "rc = %d", rc); */
    json_end_array(json);
 
    ret = json_to_string(json);
    json_free(json);
    return ret;
-}
-static void
-dbrelay_write_json_colinfo(json_t *json, void *db, int colnum, int *maxcolname)
-{
-   char tmp[256], *colname, tmpcolname[256];
-   int l;
-
-   json_new_object(json);
-   colname = api->colname(db, colnum);
-   if (dbrelay_is_unnamed_column(colname)) {
-      sprintf(tmpcolname, "%d", ++(*maxcolname));
-      json_add_string(json, "name", tmpcolname);
-   } else {
-      l = atoi(colname); 
-      if (l>0 && l>*maxcolname) {
-         *maxcolname=l;
-      }
-      json_add_string(json, "name", colname);
-   }
-   api->coltype(db, colnum, tmp);
-   json_add_string(json, "sql_type", tmp);
-   l = api->collen(db, colnum);
-   if (l!=0) {
-      sprintf(tmp, "%d", l);
-      json_add_number(json, "length", tmp);
-   }
-   l = api->colprec(db, colnum);
-   if (l!=0) {
-      sprintf(tmp, "%d", l);
-      json_add_number(json, "precision", tmp);
-   }
-   l = api->colscale(db, colnum);
-   if (l!=0) {
-      sprintf(tmp, "%d", l);
-      json_add_number(json, "scale", tmp);
-   }
-   json_end_object(json);
 }
 static void 
 dbrelay_write_json_column(json_t *json, void *db, int colnum, int *maxcolname)
