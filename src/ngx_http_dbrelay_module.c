@@ -659,8 +659,8 @@ write_value(dbrelay_request_t *request, char *key, char *value)
       i = atoi(&key[5]);
       if (i>DBRELAY_MAX_PARAMS) {
          dbrelay_log_error(request, "param%d exceeds DBRELAY_MAX_PARAMS", i);
-      } else if (i>0) {
-         request->params[i-1] = strdup(value);
+      } else {
+         request->params[i] = strdup(value);
       }
    } else if (!strcmp(key, "flags")) {
       write_flag_values(request, value);

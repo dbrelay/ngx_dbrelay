@@ -377,7 +377,7 @@ process_line(char *line)
          receive_param = 0;
          request.params[paramnum] = sb_to_char(sb_param);
          if (request.params[paramnum][strlen(request.params[paramnum])-1]=='\n') request.params[paramnum][strlen(request.params[paramnum])-1]='\0';
-         sb_free(sb_sql);
+         sb_free(sb_param);
       } else return ERR;
       if (receive_param) return CONT;
       else return OK;
