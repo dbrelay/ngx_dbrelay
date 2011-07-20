@@ -574,6 +574,7 @@ dbrelay_resolve_params(dbrelay_request_t *request, char *sql)
    stringbuf_t *sb = sb_new(NULL);
    char *ret;
    char *tmpsql = strdup(sql);
+   char *s, *s2;
 
    if (IS_SET(DBRELAY_MAGIC) && !(request->flags & DBRELAY_FLAG_NOMAGIC)) {
       sb_append(sb, DBRELAY_MAGIC);
@@ -588,7 +589,17 @@ dbrelay_resolve_params(dbrelay_request_t *request, char *sql)
          tmpsql[pos]='\0';
          sb_append(sb, &tmpsql[prevpos]);
          if (is_quoted_param(request->params[i])) sb_append(sb, "'");
-         sb_append(sb, strstr(request->params[i], ":") + 1);
+         s = strstr(request->params[i], ":");
+         if (!s) {
+            return NULL;
+         } else s++;
+         while ((s2 = strstr(s, "'"))) {
+            *s2 = '\0';
+            sb_append(sb, s);
+            sb_append(sb, "''");
+            s = s2 + 1;
+         }
+         sb_append(sb, s);
          if (is_quoted_param(request->params[i])) sb_append(sb, "'");
          pos++;
       }
