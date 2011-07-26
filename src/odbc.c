@@ -374,13 +374,13 @@ char *dbrelay_odbc_colvalue(void *db, int colnum, char *dest)
       case SQL_REAL:
          SQLGetData(odbc->stmt, colnum, SQL_C_FLOAT, &data.f, sizeof(SQL_C_FLOAT), &null);
          if (isnan(data.f) || isinf(data.f)) strcpy(dest, "null");
-         sprintf(dest, "%.8g", data.f);
+         else sprintf(dest, "%.8g", data.f);
          break;
       case SQL_FLOAT:
       case SQL_DOUBLE:
          SQLGetData(odbc->stmt, colnum, SQL_C_DOUBLE, &data.d, sizeof(SQL_C_DOUBLE), &null);
          if (isnan(data.d) || isinf(data.d)) strcpy(dest, "null");
-         sprintf(dest, "%.17g", data.d);
+         else sprintf(dest, "%.17g", data.d);
          break;
       case SQL_NUMERIC:
          SQLGetData(odbc->stmt, colnum, SQL_C_NUMERIC, &data.n, sizeof(SQL_C_NUMERIC), &null);
