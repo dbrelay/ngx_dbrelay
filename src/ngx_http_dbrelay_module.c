@@ -170,10 +170,12 @@ origin_matches(ngx_http_request_t *r, ngx_str_t origin)
     if (!header_value) {
        return 0;
     }
+    ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "Origin header value %s", header_value);
 
     origin_string = (char *) malloc(origin.len + 1);
     memcpy(origin_string, origin.data, origin.len);
     origin_string[origin.len]='\0';
+    ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "origin length %d", origin.len);
     s = strtok((char *)origin_string, ",");
     if (s) do {
           if (s[0]=='*') {
@@ -446,12 +448,14 @@ ngx_http_dbrelay_handler(ngx_http_request_t *r)
        ngx_log_error(NGX_LOG_DEBUG, log, 0, "Origin: \"%s\"", header_value);
        free(header_value);
     }
+    ngx_log_error(NGX_LOG_DEBUG, log, 0, "Checking for origin match");
     if (vlcf->origin.len && !origin_matches(r, vlcf->origin)) {
        ngx_log_error(NGX_LOG_DEBUG, log, 0, "Origins do not match");
        return NGX_HTTP_FORBIDDEN;
     } else if (vlcf->origin.len) {
        ngx_log_error(NGX_LOG_DEBUG, log, 0, "Origins match");
     }
+    ngx_log_error(NGX_LOG_DEBUG, log, 0, "Origin checked");
 
     rc = ngx_http_read_client_request_body(r, ngx_http_dbrelay_request_body_handler);
 
