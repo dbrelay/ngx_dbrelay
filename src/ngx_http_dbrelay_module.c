@@ -42,6 +42,12 @@
 #include <sybdb.h>
 #endif
 
+#ifndef DDEBUG
+#define DDEBUG 1
+#endif
+#include "ngx_http_dbrelay_ddebug.h"
+
+
 typedef struct {
     ngx_http_upstream_conf_t   upstream;
     ngx_str_t   origin;
@@ -117,11 +123,12 @@ ngx_module_t  ngx_http_dbrelay_module = {
 ngx_int_t
 ngx_http_dbrelay_init_master(ngx_log_t *log)
 {
+   dd("entering");
 #if HAVE_FREETDS
     dbinit();
 #endif
-   ngx_log_error(NGX_LOG_INFO, log, 0, "in init master");
 
+   dd("returning NGX_OK");
    return NGX_OK;
 }
 
@@ -132,6 +139,8 @@ ngx_http_dbrelay_exit_master(ngx_cycle_t *cycle)
    int i, s;
    pid_t pid = 0;
    int error;
+
+   dd("entering");
 
    connections = dbrelay_get_shmem();
 
@@ -158,6 +167,7 @@ ngx_http_dbrelay_exit_master(ngx_cycle_t *cycle)
 
    dbrelay_release_shmem(connections);
    dbrelay_destroy_shmem();
+   dd("returning");
 }
 static unsigned int
 origin_matches(ngx_http_request_t *r, ngx_str_t origin)
@@ -166,18 +176,21 @@ origin_matches(ngx_http_request_t *r, ngx_str_t origin)
     int match = 0;
     u_char *header_value;
 
+    dd("entering");
+
     header_value = get_header_value(r, "Origin");
     if (!header_value) {
        return 0;
     }
-    ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "Origin header value %s", header_value);
+    dd("origin header %s", header_value);
 
     origin_string = (char *) malloc(origin.len + 1);
     memcpy(origin_string, origin.data, origin.len);
     origin_string[origin.len]='\0';
-    ngx_log_error(NGX_LOG_DEBUG, r->connection->log, 0, "origin length %d", origin.len);
+
     s = strtok((char *)origin_string, ",");
     if (s) do {
+          dd("origin arg");
           if (s[0]=='*') {
             if (!strcmp(&s[1], (char *) &header_value[strlen((char *) header_value) - strlen(s) + 1])) match=1;
           } else if (!strcmp(s, (char *) header_value)) match = 1;
@@ -185,6 +198,7 @@ origin_matches(ngx_http_request_t *r, ngx_str_t origin)
     } while (s);
     free(header_value);
     free(origin_string);
+    dd("returning %d", match);
     return match;
 }
 static unsigned int
@@ -194,6 +208,7 @@ accepts_application_json(ngx_http_request_t *r)
     unsigned int   have = 0;
     char          *s, *s2;
 
+    dd("entering");
     /*
      Note: WebKit and IE Accept headers are hopelessly broken, we are
      looking for a user agent that accepts application/json regardless
@@ -212,6 +227,7 @@ accepts_application_json(ngx_http_request_t *r)
        } while (s);
        free(header_value);
     }
+    dd("returning %d", have);
     return have;
 }
 static u_char *
@@ -221,6 +237,8 @@ get_header_value(ngx_http_request_t *r, char *header_key)
     ngx_table_elt_t              *header;
     u_char *retstr;
     u_int i;
+
+    dd("entering");
 
     part = &r->headers_in.headers.part;
     header = part->elts;
@@ -241,155 +259,23 @@ get_header_value(ngx_http_request_t *r, char *header_key)
            retstr = (u_char *) malloc(header[i].value.len);
            memcpy(retstr, header[i].value.data, header[i].value.len);
            retstr[header[i].value.len]='\0';
+           dd("returning %s", retstr);
            return retstr;
         }
     }
+    dd("returning NULL");
     return NULL;
 }
 static void
 ngx_http_dbrelay_request_body_handler(ngx_http_request_t *r)
 {
-    //size_t                    root;
-    //ngx_str_t                 path;
-    ngx_log_t                 *log;
     ngx_int_t                 rc;
 
-    log = r->connection->log;
-    ngx_log_error(NGX_LOG_INFO, log, 0, "entering dbrelay_request_body_handler");
+    dd("entering");
 
-    //ngx_http_map_uri_to_path(r, &path, &root, 0);
-#if 0
-    /* is GET method? */
-    if (r->args.len>0) {
-    	ngx_log_error(NGX_LOG_INFO, log, 0, "args len: %d", r->args.len);
-    }
-    /* is POST method? */
-    if (r->request_body->buf && r->request_body->buf->pos!=NULL) {
-       ngx_log_error(NGX_LOG_DEBUG, log, 0,
-            "buf: \"%s\"", r->request_body->buf->pos);
-    } 
-#endif
-    //ngx_log_error(NGX_LOG_DEBUG, log, 0,
-        //"buf: \"%s\"", r->request_body->bufs->buf->pos);
     rc = ngx_http_dbrelay_send_response(r);
-    ngx_log_error(NGX_LOG_INFO, log, 0, "exiting dbrelay_request_body_handler");
+    dd("returning");
 }
-
-/*
- * Copied from Emillers guide, for upstream module, not yet functional
- */
-#if 0
-static ngx_int_t
-ngx_http_dbrelay_create_request(ngx_http_request_t *r)
-{
-    /* make a buffer and chain */
-    ngx_buf_t *b;
-    ngx_chain_t *cl;
-
-    b = ngx_create_temp_buf(r->pool, sizeof("a") - 1);
-    if (b == NULL)
-        return NGX_ERROR;
-
-    cl = ngx_alloc_chain_link(r->pool);
-    if (cl == NULL)
-        return NGX_ERROR;
-
-    /* hook the buffer to the chain */
-    cl->buf = b;
-    /* chain to the upstream */
-    r->upstream->request_bufs = cl;
-
-    /* now write to the buffer */
-    b->pos = (u_char *)"a";
-    b->last = b->pos + sizeof("a") - 1;
-
-    return NGX_OK;
-}
-#endif
-
-/*
- * Copied from Emillers guide, for upstream module, not yet functional
- */
-#if 0
-static ngx_int_t
-ngx_http_dbrelay_process_header(ngx_http_request_t *r)
-{
-    ngx_http_upstream_t       *u;
-    u = r->upstream;
-
-    /* read the first character */
-    switch(u->buffer.pos[0]) {
-        case '?':
-            r->header_only=1; /* suppress this buffer from the client */
-            u->headers_in.status_n = 404;
-            break;
-        case ' ':
-            u->buffer.pos++; /* move the buffer to point to the next character */
-            u->headers_in.status_n = 200;
-            break;
-    }
-
-    return NGX_OK;
-}
-#endif
-/*
- * Copied from Emillers guide, for upstream module, not yet functional
- */
-#if 0
-static void
-ngx_http_dbrelay_finalize_request(ngx_http_request_t *r, ngx_int_t rc)
-{
-    ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
-                   "finalize dbrelay request");
-
-    return;
-}
-#endif
-
-/*
- * Copied from Emillers guide, for upstream module, not yet functional
- */
-#if 0
-static ngx_int_t
-ngx_http_dbrelay2_handler(ngx_http_request_t *r)
-{
-    ngx_int_t                   rc;
-    ngx_http_upstream_t        *u;
-    ngx_http_dbrelay_loc_conf_t  *vlcf;
-
-    vlcf = ngx_http_get_module_loc_conf(r, ngx_http_dbrelay_module);
-
-    /* set up our upstream struct */
-    u = ngx_pcalloc(r->pool, sizeof(ngx_http_upstream_t));
-    if (u == NULL) {
-        return NGX_HTTP_INTERNAL_SERVER_ERROR;
-    }
-
-    u->peer.log = r->connection->log;
-    u->peer.log_error = NGX_ERROR_ERR;
-
-    u->output.tag = (ngx_buf_tag_t) &ngx_http_dbrelay_module;
-
-    u->conf = &vlcf->upstream;
-
-    /* attach the callback functions */
-    u->create_request = ngx_http_dbrelay_create_request;
-    u->reinit_request = NULL; //ngx_http_dbrelay_reinit_request;
-    u->process_header = NULL; //ngx_http_dbrelay_process_status_line;
-    u->abort_request = NULL; //ngx_http_dbrelay_abort_request;
-    u->finalize_request = ngx_http_dbrelay_finalize_request;
-
-    r->upstream = u;
-
-    rc = ngx_http_read_client_request_body(r, ngx_http_dbrelay_request_body_handler);
-
-    if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
-        return rc;
-    }
-
-    return NGX_DONE;
-}
-#endif
 
 /*
  * Non-upstream version of handler.  
@@ -405,22 +291,26 @@ ngx_http_dbrelay_handler(ngx_http_request_t *r)
     ngx_http_dbrelay_loc_conf_t  *vlcf;
     u_char *header_value;
 
+    dd("entering");
+
     log = r->connection->log;
-    ngx_log_error(NGX_LOG_INFO, log, 0, "dbrelay_handler called");
 
     vlcf = ngx_http_get_module_loc_conf(r, ngx_http_dbrelay_module);
 
     if (!(r->method & (NGX_HTTP_GET|NGX_HTTP_HEAD|NGX_HTTP_POST))) {
         ngx_log_error(NGX_LOG_WARN, log, 0, "unsupported method, returning not allowed");
+        dd("returning NGX_HTTP_NOT_ALLOWED");
         return NGX_HTTP_NOT_ALLOWED;
     }
 
     if (r->uri.data[r->uri.len - 1] == '/') {
+        dd("returning NGX_DECLINED");
         return NGX_DECLINED;
     }
 
     /* TODO: Win32 */
     if (r->zero_in_uri) {
+        dd("returning NGX_DECLINED");
         return NGX_DECLINED;
     }
 
@@ -430,43 +320,33 @@ ngx_http_dbrelay_handler(ngx_http_request_t *r)
     r->request_body_in_persistent_file = 1;
     r->request_body_in_clean_file = 1;
 
-    ngx_log_error(NGX_LOG_DEBUG, log, 0, "here1");
     clcf = ngx_http_get_module_loc_conf(r, ngx_http_core_module);
 
-    ngx_log_error(NGX_LOG_DEBUG, log, 0, "here2");
-#if 0
-    if (r->method == NGX_HTTP_GET || r->method == NGX_HTTP_HEAD) {
-        rc = ngx_http_discard_request_body(r);
-        if (rc != NGX_OK) return rc;
-        return ngx_http_dbrelay_send_response(r);
-    }
-    /* else POST method */
-#endif
+    dd("getting Origin header");
 
     header_value = get_header_value(r, "Origin");
     if (header_value) {
        ngx_log_error(NGX_LOG_DEBUG, log, 0, "Origin: \"%s\"", header_value);
        free(header_value);
     }
-    ngx_log_error(NGX_LOG_DEBUG, log, 0, "Checking for origin match");
+    dd("checking for Origin match");
     if (vlcf->origin.len && !origin_matches(r, vlcf->origin)) {
-       ngx_log_error(NGX_LOG_DEBUG, log, 0, "Origins do not match");
+       dd("returning NGX_HTTP_FORBIDDEN");
        return NGX_HTTP_FORBIDDEN;
-    } else if (vlcf->origin.len) {
-       ngx_log_error(NGX_LOG_DEBUG, log, 0, "Origins match");
     }
-    ngx_log_error(NGX_LOG_DEBUG, log, 0, "Origin checked");
+    dd("checked");
 
+    dd("reading request_body");
     rc = ngx_http_read_client_request_body(r, ngx_http_dbrelay_request_body_handler);
 
     if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
-        ngx_log_error(NGX_LOG_ERR, log, 0, "failed to read client request body");
+        dd("failed to read client request body");
+        dd("returning %d", rc);
         return rc;
     }
 
-    ngx_log_error(NGX_LOG_INFO, log, 0, "exiting dbrelay_handler");
+    dd("returning NGX_DONE");
     return NGX_DONE;
-    //return ngx_http_dbrelay_send_response(r);
 }
 
 static ngx_int_t
@@ -483,6 +363,8 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     int cplength;
     ngx_http_dbrelay_loc_conf_t  *vlcf;
 
+    dd("entering");
+
     vlcf = ngx_http_get_module_loc_conf(r, ngx_http_dbrelay_module);
 
 
@@ -493,17 +375,19 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     request->log_level = 0;
     request->nginx_request = (void *) r;
 
-    ngx_log_error(NGX_LOG_INFO, log, 0, "parsing query_string");
+    dd("parsing query string");
     /* is GET method? */
     if (r->method==NGX_HTTP_GET || r->method==NGX_HTTP_HEAD) { //r->args.len>0) {
-        ngx_log_error(NGX_LOG_DEBUG, log, 0, "args length %l", r->args.len);
-        ngx_log_error(NGX_LOG_DEBUG, log, 0, "last byte %d", (int) r->args.data[r->args.len-1]);
+        dd("GET method");
+        dd("args length = %d", r->args.len);
 	parse_get_query_string(r->args, request);
     } else
     /* is POST method? */
     if (r->request_body->temp_file && r->request_body->temp_file->file.fd!=NGX_INVALID_FILE) {
+        dd("POST method (from temp file)");
 	parse_post_query_file(r->request_body->temp_file, request);
     } else if (r->request_body->buf && r->request_body->buf->pos!=NULL) {
+        dd("POST method");
 	parse_post_query_string(r->request_body->bufs, request);
     } 
     /* FIX ME - need to check to see if we have everything and error if not */
@@ -512,18 +396,15 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
        r->keepalive = 0;
     }
 
-    ngx_log_error(NGX_LOG_INFO, log, 0, "sql_server: \"%s\"", request->sql_server);
-    if (request->sql) ngx_log_error(NGX_LOG_DEBUG, log, 0, "sql: \"%s\"", request->sql);
+    dd("sql_server = %s", request->sql_server);
+    if (request->sql) dd("sql = %s", request->sql_server);
 	    
     log->action = "sending response to client";
 
     cplength = r->connection->addr_text.len > DBRELAY_OBJ_SZ - 1 ? DBRELAY_OBJ_SZ - 1 : r->connection->addr_text.len;
     strncpy(request->remote_addr, (char *) r->connection->addr_text.data, cplength);
     request->remote_addr[cplength] = '\0';
-    //sin = (struct sockaddr_in *) r->connection->sockaddr;
-    //hent = gethostbyaddr(&(sin->sin_addr.s_addr), r->connection->socklen, AF_INET);
-    //if (!hent) ngx_log_error(NGX_LOG_DEBUG, log, 0, "gethostbyaddr returned error (%d)", errno);
-    //ngx_log_error(NGX_LOG_DEBUG, log, 0, "remote hostname: \"%s\"", hent->h_name);
+    dd("remote_addr = %s", request->remote_addr);
 
     if (strlen(request->cmd)) json_output = (u_char *) dbrelay_db_cmd(request);
     else if (request->status) json_output = (u_char *) dbrelay_db_status(request);
@@ -535,25 +416,23 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     b = ngx_create_temp_buf(r->pool, len + 1);
     //b = ngx_pcalloc(r->pool, sizeof(ngx_buf_t));
     if (b == NULL) {
-    	//ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
+        dd("returning NGX_HTTP_INTERNAL_SERVER_ERROR");
 	return NGX_HTTP_INTERNAL_SERVER_ERROR;
     }
 
     out.buf = b;
     out.next = NULL;
 
-    //b->pos = json_output;
-    //b->last = json_output + len;
     b->last = ngx_cpymem(b->last, json_output, len);
     free(json_output);
 
-    //b->memory = 1;
     b->last_buf = 1;
 
 
+    dd("getting Accept header");
     header_value = get_header_value(r, "Accept");
     if (header_value) {
-       ngx_log_error(NGX_LOG_DEBUG, log, 0, "Accept: \"%s\"", header_value);
+       dd("Accept header = %s", header_value);
        free(header_value);
     }
 
@@ -573,9 +452,13 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
         rc = ngx_http_send_header(r);
     }
 
+    dd("sending headers");
     rc = ngx_http_send_header(r);
+    dd("calling output filters");
     rc = ngx_http_output_filter(r, &out);
+    dd("finalizing request");
     ngx_http_finalize_request(r, rc);
+    dd("returning %d", rc);
     return rc;
 }
 
@@ -584,9 +467,12 @@ ngx_http_dbrelay_set(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_http_core_loc_conf_t  *clcf;
 
+    dd("entering");
+
     clcf = ngx_http_conf_get_module_loc_conf(cf, ngx_http_core_module);
     clcf->handler = ngx_http_dbrelay_handler;
 
+    dd("returning NGX_CONF_OK");
     return NGX_CONF_OK;
 }
 
@@ -596,15 +482,18 @@ ngx_http_dbrelay_create_loc_conf(ngx_conf_t *cf)
     //ngx_str_t default_origin = ngx_string("*");
     ngx_http_dbrelay_loc_conf_t  *conf;
 
+    dd("entering");
+
 #if HAVE_FREETDS
     dbinit();
 #endif
 
     conf = ngx_pcalloc(cf->pool, sizeof(ngx_http_dbrelay_loc_conf_t));
     if (conf == NULL) {
+    	dd("returning NGX_CONF_ERROR");
         return NGX_CONF_ERROR;
     }
-    //conf->origin = default_origin;
+    dd("returning");
     return conf;
 }
 static void 
@@ -616,6 +505,7 @@ write_value(dbrelay_request_t *request, char *key, char *value)
    char *log_levels[] = { "debug", "informational", "notice", "warning", "error", "critical" };
    char *log_level_scopes[] = { "server", "connection", "query" };
 
+   dd("entering");
 
    /* simple unescape of '+', ngx_unescape_uri doesn't do this for us */
    for (i=0;i<strlen(value);i++) {
@@ -687,12 +577,15 @@ write_value(dbrelay_request_t *request, char *key, char *value)
       dbrelay_log_debug(request, "key %s", key);
       dbrelay_log_debug(request, "value %s", value);
    }
+   dd("returning");
 }
 static void 
 write_flag_values(dbrelay_request_t *request, char *value)
 {
    char *flags = strdup(value);
    char *tok;
+
+   dd("entering");
 
    while ((tok = strsep(&flags, ","))) {
       if (!strcmp(tok, "echosql")) request->flags|=DBRELAY_FLAG_ECHOSQL; 
@@ -702,6 +595,7 @@ write_flag_values(dbrelay_request_t *request, char *value)
       else if (!strcmp(tok, "nomagic")) request->flags|=DBRELAY_FLAG_NOMAGIC; 
    }
    free(flags);
+   dd("returning");
 }
 void parse_post_query_file(ngx_temp_file_t *temp_file, dbrelay_request_t *request)
 {
@@ -715,7 +609,7 @@ void parse_post_query_file(ngx_temp_file_t *temp_file, dbrelay_request_t *reques
    int chop = 0;
    struct stat statbuf;
 
-   dbrelay_log_debug(request, "entering parse_post_query_file");
+   dd("entering");
 
    fstat(temp_file->file.fd, &statbuf);
    buf = (u_char *) malloc(statbuf.st_size);
@@ -728,7 +622,7 @@ void parse_post_query_file(ngx_temp_file_t *temp_file, dbrelay_request_t *reques
    
    value = (char *) malloc(bufsz);
    v = value;
-   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "post data %l bytes", bufsz);
+   dd("post data = %lu bytes", bufsz);
 
    for (s= (char *)buf; s !=  (char *)&buf[bufsz]; s++)
    { 
@@ -756,7 +650,7 @@ void parse_post_query_file(ngx_temp_file_t *temp_file, dbrelay_request_t *reques
    write_value(request, key, value);
    free(value);
    free(buf);
-   dbrelay_log_debug(request, "leaving parse_post_query_file");
+   dd("returning");
 }
 void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request)
 {
@@ -769,7 +663,7 @@ void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request)
    unsigned long bufsz = 0;
    int chop = 0;
 
-   dbrelay_log_debug(request, "entering parse_post_query_string");
+   dd("entering");
 
    for (chain = bufs; chain!=NULL; chain = chain->next) 
    {
@@ -778,7 +672,7 @@ void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request)
    }
    value = (char *) malloc(bufsz);
    v = value;
-   ngx_log_error(NGX_LOG_DEBUG, request->log, 0, "post data %l bytes", bufsz);
+   dd("post data = %lu bytes", bufsz);
 
    for (chain = bufs; chain!=NULL; chain = chain->next) 
    {
@@ -809,7 +703,7 @@ void parse_post_query_string(ngx_chain_t *bufs, dbrelay_request_t *request)
    if (!chop) *v='\0';
    write_value(request, key, value);
    free(value);
-   dbrelay_log_debug(request, "leaving parse_post_query_string");
+   dd("returning");
 }
 void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request)
 {
@@ -818,7 +712,12 @@ void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request)
    char *s, *k, *v;
    int target = 0;
 
-   if (args.len==0) return;
+   dd("entering");
+   if (args.len==0) {
+      dd("no GET data");
+      dd("returning");
+      return;
+   }
 
    value = malloc(args.len);
    k = key;
@@ -847,5 +746,6 @@ void parse_get_query_string(ngx_str_t args, dbrelay_request_t *request)
    *v='\0';
    write_value(request, key, value);
    free(value);
+   dd("returning");
 }
 
