@@ -1,10 +1,13 @@
 #ifndef DDEBUG_H
 #define DDEBUG_H
 
+#if !defined(CMDLINE)
 #include <ngx_core.h>
+#else
+#define NGX_HAVE_VARIADIC_MACROS 1
+#endif
 
 #if defined(DDEBUG) && (DDEBUG)
-
 #   if (NGX_HAVE_VARIADIC_MACROS)
 
 #       define dd(...) fprintf(stderr, "ngx_dbrelay *** %s: ", __func__); \
