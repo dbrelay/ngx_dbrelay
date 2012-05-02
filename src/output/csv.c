@@ -74,6 +74,7 @@ dbrelay_csv_fill(dbrelay_connection_t *conn, unsigned long flags, int *error)
    int numcols, colnum;
    int maxcolname;
    char *ret;
+   int suppress_empty = 0;
 
    stringbuf_t *sb = sb_new(NULL);
 
@@ -82,7 +83,8 @@ dbrelay_csv_fill(dbrelay_connection_t *conn, unsigned long flags, int *error)
         maxcolname = 0;
 
 	numcols = api->numcols(conn->db);
-        if (numcols) {
+	if ((flags & DBRELAY_FLAG_NOEMPTY) && !numcols) suppress_empty = 1;
+        if (!suppress_empty) {
 	   for (colnum=1; colnum<=numcols; colnum++) {
                if (colnum!=1) sb_append(sb, ",");
                dbrelay_write_csv_colname(sb, conn->db, colnum, &maxcolname);
