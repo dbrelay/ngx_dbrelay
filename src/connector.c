@@ -124,7 +124,6 @@ main(int argc, char **argv)
    char in_buf[DBRELAY_SOCKET_BUFSIZE];
    char buf[30];
    int in_ptr = -1;
-   int len, pos = 0;
    int done = 0, ret, t = 0;
    char *results;
    char *sock_path;
@@ -243,7 +242,7 @@ main(int argc, char **argv)
                  dd("sending results"); 
                  dbrelay_socket_send_string(s2, ":RESULTS BEGIN\n");
                  dd("%s", results);
-                 dd("len = %d", strlen(results));
+                 dd("len = %d", (int) strlen(results));
                  dbrelay_socket_send_string(s2, results);
                  dbrelay_socket_send_string(s2, "\n");
                  dbrelay_socket_send_string(s2, ":RESULTS END\n");
@@ -256,7 +255,7 @@ main(int argc, char **argv)
                  dd("sending results"); 
                  dbrelay_socket_send_string(s2, ":RESULTS BEGIN\n");
                  dd("%s", results);
-                 dd("len = %d", strlen(results));
+                 dd("len = %d", (int) strlen(results));
                  dbrelay_socket_send_string(s2, results);
                  dbrelay_socket_send_string(s2, "\n");
                  dbrelay_socket_send_string(s2, ":RESULTS END\n");
@@ -280,7 +279,7 @@ main(int argc, char **argv)
            } else if (ret == CONT) {
               dd("(cont)"); 
            } else {
-              dd("ret = %d.", ret); 
+              dd("ret = %d.", (int) ret); 
               dbrelay_socket_send_string(s2, ":ERR\n");
            }
         } // recv

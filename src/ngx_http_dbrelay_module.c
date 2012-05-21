@@ -341,7 +341,7 @@ ngx_http_dbrelay_handler(ngx_http_request_t *r)
 
     if (rc >= NGX_HTTP_SPECIAL_RESPONSE) {
         dd("failed to read client request body");
-        dd("returning %d", rc);
+        dd("returning %ld", rc);
         return rc;
     }
 
@@ -379,7 +379,7 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     /* is GET method? */
     if (r->method==NGX_HTTP_GET || r->method==NGX_HTTP_HEAD) { //r->args.len>0) {
         dd("GET method");
-        dd("args length = %d", r->args.len);
+        dd("args length = %d", (int) r->args.len);
 	parse_get_query_string(r->args, request);
     } else
     /* is POST method? */
@@ -458,7 +458,7 @@ ngx_http_dbrelay_send_response(ngx_http_request_t *r)
     rc = ngx_http_output_filter(r, &out);
     dd("finalizing request");
     ngx_http_finalize_request(r, rc);
-    dd("returning %d", rc);
+    dd("returning %ld", rc);
     return rc;
 }
 
